@@ -47,6 +47,11 @@ func GetRootKey(version int64) []byte {
 	return b
 }
 
+type GhostNode struct {
+	nodeKey *NodeKey
+	*Node
+}
+
 // Node represents a node in a Tree.
 type Node struct {
 	key           []byte
@@ -116,24 +121,18 @@ func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
 	if node.leftNode != nil {
 		return node.leftNode, nil
 	}
-	return nil, fmt.Errorf("node not found")
-	//leftNode, err := t.ndb.GetNode(node.leftNodeKey)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return leftNode, nil
+	//return nil, fmt.Errorf("node not found")
+	leftNode := t.pool.Get(node.leftNodeKey)
+	return leftNode, nil
 }
 
 func (node *Node) getRightNode(t *MutableTree) (*Node, error) {
 	if node.rightNode != nil {
 		return node.rightNode, nil
 	}
-	return nil, fmt.Errorf("node not found")
-	//rightNode, err := t.ndb.GetNode(node.rightNodeKey)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return rightNode, nil
+	//return nil, fmt.Errorf("node not found")
+	rightNode := t.pool.Get(node.rightNodeKey)
+	return rightNode, nil
 }
 
 // NOTE: mutates height and size
@@ -256,6 +255,7 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, error) {
 		return nil, err
 	}
 
+	tree.addOrphan(node.leftNode)
 	newNode, err := node.leftNode.clone(tree)
 	if err != nil {
 		return nil, err
@@ -286,6 +286,7 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, error) {
 		return nil, err
 	}
 
+	tree.addOrphan(node.rightNode)
 	newNode, err := node.rightNode.clone(tree)
 	if err != nil {
 		return nil, err

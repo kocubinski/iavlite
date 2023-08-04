@@ -1,1 +1,2 @@
-testdata/*.gz
+testdata/changelogs
+.idea/

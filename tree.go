@@ -1,6 +1,9 @@
 package iavlite
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+)
 
 type Tree struct {
 	version int64
@@ -8,8 +11,8 @@ type Tree struct {
 	db      *db
 
 	sequence uint32
-	added    []*NodeData
-	deleted  []*NodeData
+	added    []*DbNode
+	deleted  []*DbNode
 }
 
 func NewTree(db *db) *Tree {
@@ -18,46 +21,43 @@ func NewTree(db *db) *Tree {
 	}
 }
 
+func (nk *NodeKey) String() string {
+	return fmt.Sprintf("(%d, %d)", nk.version, nk.sequence)
+}
+
 func (t *Tree) Get(key []byte) (value []byte, err error) {
 	return []byte{}, nil
 }
 
 func (t *Tree) Set(key []byte, value []byte) (err error) {
+	if t.root == nil {
+		t.root = t.NewNode(key, value)
+		return nil
+	}
 	t.root, _ = t.set(t.root, key, value)
 	return nil
 }
 
 func (t *Tree) set(node *Node, key []byte, value []byte) (*Node, bool) {
-	if node == nil {
-		return t.NewNode(key, value), false
-	}
 	if node.IsLeaf() {
 		switch bytes.Compare(key, node.key) {
 		case 0: // setKey == leafKey
-			n := t.NewNode(key, value)
-			t.addChanged(node, n)
+			n := t.FadeNode(node)
+			n.value = value
 			return n, true
 		case -1: // setKey < leafKey
-			n := &Node{
-				NodeData: NodeData{
-					key:    node.key,
-					height: 1,
-					size:   2,
-				},
-				leftNode:  t.NewNode(key, value),
-				rightNode: node,
-			}
+			n := t.NewNode(key, nil)
+			n.height = 1
+			n.size = 2
+			n.leftNode = t.NewNode(key, value)
+			n.rightNode = node
 			return n, false
 		case 1: // setKey > leafKey
-			n := &Node{
-				NodeData: NodeData{
-					key:    key,
-					height: 1,
-					size:   2,
-				},
-				leftNode:  node,
-				rightNode: t.NewNode(key, value),
-			}
+			n := t.NewNode(key, nil)
+			n.height = 1
+			n.size = 2
+			n.leftNode = node
+			n.rightNode = t.NewNode(key, value)
 			return n, false
 		}
 	}
@@ -65,14 +65,14 @@ func (t *Tree) set(node *Node, key []byte, value []byte) (*Node, bool) {
 	newNode := t.FadeNode(node)
 	var updated bool
 	if bytes.Compare(key, node.key) == -1 {
-		node.leftNode, updated = t.set(node.left(t.db), key, value)
+		newNode.leftNode, updated = t.set(newNode.left(t.db), key, value)
 	} else {
-		node.rightNode, updated = t.set(node.right(t.db), key, value)
+		newNode.rightNode, updated = t.set(newNode.right(t.db), key, value)
 	}
 
 	if !updated {
 		newNode.calcHeightAndSize()
-		newNode = t.rebalance(node)
+		newNode = t.rebalance(newNode)
 	}
 
 	return newNode, updated
@@ -123,17 +123,36 @@ func (t *Tree) remove(node *Node, key []byte) (value []byte, updated *Node) {
 	return value, t.rebalance(newNode)
 }
 
-func (t *Tree) Commit() (version int64, err error) {
-	return 0, nil
+func (t *Tree) SaveVersion() (rootHash []byte, version int64, err error) {
+	rootHash, _, err = t.deepHash(t.root)
+	if err != nil {
+		return nil, 0, err
+	}
+	if t.version%1000 == 0 {
+		fmt.Printf("version %d; hashIter: %d; hashCacl: %d\n", t.version, deepHashIter, deepHashCount)
+	}
+
+	deepHashIter = 0
+	deepHashCount = 0
+
+	t.version++
+	t.sequence = 1
+	t.added = nil
+	t.deleted = nil
+	return rootHash, t.version, nil
 }
 
-func (t *Tree) addChanged(old *Node, new *Node) {
-	t.added = append(t.added, &new.NodeData)
+func (t *Tree) pushChanged(old *Node, new *Node) {
+	t.added = append(t.added, &DbNode{new.NodeData, new.nodeKey})
 	// a node without a hash is node which has been added and deleted in the same block
 	// and therefore does not need to be persisted
 	if old.hash != nil {
-		t.deleted = append(t.deleted, &old.NodeData)
+		t.deleted = append(t.deleted, &DbNode{NodeKey: old.nodeKey})
 	}
+}
+
+func (t *Tree) pushAdded(node *Node) {
+	t.added = append(t.added, &DbNode{node.NodeData, node.nodeKey})
 }
 
 func (t *Tree) rebalance(n *Node) *Node {
@@ -185,44 +204,68 @@ func (t *Tree) rotateRight(n *Node) *Node {
 	return node
 }
 
-func (t *Tree) deepHash(node *Node) []byte {
-	if node.hash != nil {
-		return node.hash
+var deepHashCount int
+var deepHashIter int
+
+func (t *Tree) deepHash(node *Node) (hash []byte, nodeKey *NodeKey, err error) {
+	deepHashIter++
+	if node.nodeKey == nil {
+		return nil, nil, fmt.Errorf("node key is nil")
 	}
+
+	if node.hash != nil {
+		return node.hash, node.nodeKey, nil
+	}
+
 	// TODO may need to fetch left/right from db after evictions are in place
-	leftHash := t.deepHash(node.leftNode)
-	rightHash := t.deepHash(node.rightNode)
-	node.hash = t.hasher.Hash(leftHash, rightHash, node.key, node.value)
-	return node.hash
+	if node.height > 0 {
+		_, node.leftNodeKey, err = t.deepHash(node.leftNode)
+		if err != nil {
+			return nil, nil, err
+		}
+		_, node.rightNodeKey, err = t.deepHash(node.rightNode)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	hash, err = node.computeHash(t.version)
+	if err != nil {
+		return nil, nil, err
+	}
+	deepHashCount++
+	return hash, node.nodeKey, nil
+}
+
+func (t *Tree) NextNodeKey() *NodeKey {
+	nk := &NodeKey{
+		version:  t.version,
+		sequence: t.sequence,
+	}
+	t.sequence++
+	return nk
 }
 
 func (t *Tree) NewNode(key []byte, value []byte) *Node {
 	n := &Node{
-		NodeData: NodeData{
+		NodeData: &NodeData{
 			key:   key,
 			value: value,
 			size:  1,
 		},
-		nodeKey: NodeKey{
-			version:  t.version,
-			sequence: t.sequence,
-		},
+		nodeKey: t.NextNodeKey(),
 	}
-	t.sequence++
+	t.pushAdded(n)
 	return n
 }
 
 func (t *Tree) FadeNode(node *Node) *Node {
 	n := &Node{
-		NodeData: node.NodeData,
-		nodeKey: NodeKey{
-			version:  t.version,
-			sequence: t.sequence,
-		},
+		NodeData:  node.NodeData,
+		nodeKey:   t.NextNodeKey(),
 		leftNode:  node.leftNode,
 		rightNode: node.rightNode,
 	}
-	t.sequence++
-	t.addChanged(node, n)
+	n.hash = nil
+	t.pushChanged(node, n)
 	return n
 }

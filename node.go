@@ -2,29 +2,38 @@ package iavlite
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"io"
 
-	"github.com/kocubinski/iavlite/encoding"
+	encoding "github.com/kocubinski/iavlite/internal"
 )
 
 type NodeData struct {
 	key          []byte
 	value        []byte
 	hash         []byte
-	leftNodeKey  []byte
-	rightNodeKey []byte
+	leftNodeKey  *NodeKey
+	rightNodeKey *NodeKey
 	size         int64
 	height       int8
 }
 
 func (pn *NodeData) IsLeaf() bool {
+	if pn == nil {
+		panic("node is nil")
+	}
 	return pn.height == 0
 }
 
+type DbNode struct {
+	*NodeData
+	*NodeKey
+}
+
 type Node struct {
-	NodeData
-	nodeKey   NodeKey
+	*NodeData
+	nodeKey   *NodeKey
 	leftNode  *Node
 	rightNode *Node
 	persisted bool
@@ -35,11 +44,18 @@ type NodeKey struct {
 	sequence uint32
 }
 
+func (nk *NodeKey) Bytes() []byte {
+	b := make([]byte, 12)
+	binary.BigEndian.PutUint64(b, uint64(nk.version))
+	binary.BigEndian.PutUint32(b[8:], nk.sequence)
+	return b
+}
+
 func (n *Node) left(db *db) *Node {
-	if n.leftNode == nil {
+	if n.leftNode != nil {
 		return n.leftNode
 	}
-	left, err := db.Get(n.leftNodeKey)
+	left, err := db.Get(n.leftNodeKey.Bytes())
 	if err != nil {
 		panic(fmt.Sprintf("failed to get left node: %v", err))
 	}
@@ -47,10 +63,10 @@ func (n *Node) left(db *db) *Node {
 }
 
 func (n *Node) right(db *db) *Node {
-	if n.rightNode == nil {
+	if n.rightNode != nil {
 		return n.rightNode
 	}
-	right, err := db.Get(n.rightNodeKey)
+	right, err := db.Get(n.rightNodeKey.Bytes())
 	if err != nil {
 		panic(fmt.Sprintf("failed to get right node: %v", err))
 	}
@@ -72,29 +88,20 @@ func (n *Node) calcBalance() int {
 	return int(n.leftNode.height) - int(n.rightNode.height)
 }
 
-func (n *Node) fade() *Node {
-	return &Node{
-		NodeData:  n.NodeData,
-		nodeKey:   n.nodeKey,
-		leftNode:  n.leftNode,
-		rightNode: n.rightNode,
-	}
-}
-
 // Computes the hash of the node without computing its descendants. Must be
 // called on nodes which have descendant node hashes already computed.
-func (node *Node) _hash(version int64) []byte {
+func (node *Node) computeHash(version int64) ([]byte, error) {
 	if node.hash != nil {
-		return node.hash
+		return node.hash, nil
 	}
 
 	h := sha256.New()
 	if err := node.writeHashBytes(h, version); err != nil {
-		return nil
+		return nil, err
 	}
 	node.hash = h.Sum(nil)
 
-	return node.hash
+	return node.hash, nil
 }
 
 // Writes the node's hash to the given io.Writer. This function expects
@@ -115,7 +122,7 @@ func (node *Node) writeHashBytes(w io.Writer, version int64) error {
 
 	// Key is not written for inner nodes, unlike writeBytes.
 
-	if node.isLeaf() {
+	if node.IsLeaf() {
 		err = encoding.EncodeBytes(w, node.key)
 		if err != nil {
 			return fmt.Errorf("writing key, %w", err)
@@ -131,7 +138,7 @@ func (node *Node) writeHashBytes(w io.Writer, version int64) error {
 		}
 	} else {
 		if node.leftNode == nil || node.rightNode == nil {
-			return ErrEmptyChild
+			return fmt.Errorf("found an empty child")
 		}
 		err = encoding.EncodeBytes(w, node.leftNode.hash)
 		if err != nil {

@@ -1,4 +1,4 @@
-package iavlite
+package legacy
 
 import (
 	"fmt"
@@ -10,13 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const logDir = "./testdata/changelogs"
+const logDir = "../testdata/changelogs"
 
 func TestTree_Build(t *testing.T) {
-	tree := Tree{
-		version:  1,
-		sequence: 1,
-	}
+	tree := MutableTree{}
 
 	lastVersion := int64(1)
 	var (
@@ -33,7 +30,7 @@ func TestTree_Build(t *testing.T) {
 		require.NoError(t, err)
 		node := itr.Node
 		if !node.Delete {
-			err := tree.Set(node.Key, node.Value)
+			_, err = tree.Set(node.Key, node.Value)
 			require.NoError(t, err)
 		} else {
 			tree.Remove(node.Key)

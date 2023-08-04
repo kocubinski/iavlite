@@ -1,8 +1,10 @@
 package iavlite
 
+import "fmt"
+
 type db struct {
 }
 
 func (db *db) Get(nodeKey []byte) (*Node, error) {
-	return &Node{}, nil
+	return nil, fmt.Errorf("node not found")
 }

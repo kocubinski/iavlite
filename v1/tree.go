@@ -9,6 +9,7 @@ type MutableTree struct {
 	version int64
 	root    *Node
 	pool    nodePool
+	orphans []*Node
 }
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
@@ -17,6 +18,15 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 		return nil, 0, err
 	}
 	tree.version = version
+
+	for _, orphan := range tree.orphans {
+		if orphan.nodeKey == nil {
+			continue
+		}
+		tree.pool.DeleteNode(orphan)
+	}
+
+	tree.orphans = nil
 
 	return tree.root.hash, version, nil
 }
@@ -135,9 +145,11 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 				rightNode:     NewNode(key, value),
 			}, false, nil
 		default:
+			tree.addOrphan(node)
 			return NewNode(key, value), true, nil
 		}
 	} else {
+		tree.addOrphan(node)
 		node, err = node.clone(tree)
 		if err != nil {
 			return nil, false, err
@@ -195,6 +207,7 @@ func (tree *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 // - new leftmost leaf key for tree after successfully removing 'key' if changed.
 // - the removed value
 func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node, newKey []byte, newValue []byte, removed bool, err error) {
+	tree.addOrphan(node)
 	if node.isLeaf() {
 		if bytes.Equal(key, node.key) {
 			return nil, nil, node.value, true, nil
@@ -263,4 +276,8 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 	}
 
 	return node, nil, value, removed, nil
+}
+
+func (tree *MutableTree) addOrphan(node *Node) {
+	tree.orphans = append(tree.orphans, node)
 }

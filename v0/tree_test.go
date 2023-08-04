@@ -1,4 +1,4 @@
-package iavlite
+package v0
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const logDir = "./testdata/changelogs"
+const logDir = "../testdata/changelogs"
 
 func TestTree_Build(t *testing.T) {
 	tree := Tree{
@@ -59,4 +59,6 @@ func TestTree_Build(t *testing.T) {
 		cnt++
 	}
 	fmt.Printf("final version: %d, hash: %x\n", version, hash)
+	require.Equal(t, fmt.Sprintf("%x", hash), "be50f7b2bdb5362f76f47a215bb4b8cc4a387bbc2478e75dcc68255e8690ac92")
+	require.Equal(t, version, int64(20000))
 }

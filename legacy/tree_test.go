@@ -38,22 +38,22 @@ func TestTree_Build(t *testing.T) {
 
 		if node.Block > lastVersion {
 			hash, version, err = tree.SaveVersion()
-			//time.Sleep(100 * time.Millisecond)
 			require.NoError(t, err)
 			if version%20000 == 0 {
-				fmt.Printf("%d:%x\n", version, hash)
 				break
 			}
 			lastVersion = node.Block
 		}
-		if cnt%10_000 == 0 {
+		if cnt%100_000 == 0 {
 			fmt.Printf("processed %s leaves in %s; %s leaves/s\n",
 				humanize.Comma(int64(cnt)),
 				time.Since(since),
-				humanize.Comma(int64(10_000/time.Since(since).Seconds())))
+				humanize.Comma(int64(100_000/time.Since(since).Seconds())))
 			since = time.Now()
 		}
 		cnt++
 	}
 	fmt.Printf("final version: %d, hash: %x\n", version, hash)
+	require.Equal(t, fmt.Sprintf("%x", hash), "be50f7b2bdb5362f76f47a215bb4b8cc4a387bbc2478e75dcc68255e8690ac92")
+	require.Equal(t, version, int64(20000))
 }

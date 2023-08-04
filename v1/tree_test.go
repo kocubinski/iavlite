@@ -1,4 +1,4 @@
-package legacy
+package v1
 
 import (
 	"fmt"
@@ -10,7 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const logDir = "../testdata/changelogs"
+const logDir = "/Users/mattk/src/scratch/osmosis-hist/bank-ordered/"
+const until = 1_500_000
 
 func TestTree_Build(t *testing.T) {
 	tree := MutableTree{}
@@ -38,22 +39,24 @@ func TestTree_Build(t *testing.T) {
 
 		if node.Block > lastVersion {
 			hash, version, err = tree.SaveVersion()
-			//time.Sleep(100 * time.Millisecond)
 			require.NoError(t, err)
-			if version%20000 == 0 {
-				fmt.Printf("%d:%x\n", version, hash)
+			lastVersion = node.Block
+			if version%100_000 == 0 {
+				fmt.Printf("treeVersion: %d, blockHeight: %d, hash: %x\n", version, node.Block, hash)
+			}
+			if version == until {
 				break
 			}
-			lastVersion = node.Block
 		}
-		if cnt%10_000 == 0 {
+		if cnt%600_000 == 0 {
 			fmt.Printf("processed %s leaves in %s; %s leaves/s\n",
 				humanize.Comma(int64(cnt)),
 				time.Since(since),
-				humanize.Comma(int64(10_000/time.Since(since).Seconds())))
+				humanize.Comma(int64(600_000/time.Since(since).Seconds())))
 			since = time.Now()
 		}
 		cnt++
 	}
 	fmt.Printf("final version: %d, hash: %x\n", version, hash)
+	require.Equal(t, fmt.Sprintf("%x", hash), "ebc23d2e4e43075bae7ebc1e5db9d5e99acbafaa644b7c710213e109c8592099")
 }

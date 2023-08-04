@@ -8,6 +8,7 @@ import (
 type MutableTree struct {
 	version int64
 	root    *Node
+	pool    nodePool
 }
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
@@ -62,12 +63,10 @@ func (tree *MutableTree) saveNewNodes(version int64) error {
 		return err
 	}
 
-	//for _, node := range newNodes {
-	//if err := tree.ndb.SaveNode(node); err != nil {
-	//	return err
-	//}
-	//node.leftNode, node.rightNode = nil, nil
-	//}
+	for _, node := range newNodes {
+		tree.pool.SaveNode(node)
+		node.leftNode, node.rightNode = nil, nil
+	}
 
 	return nil
 }

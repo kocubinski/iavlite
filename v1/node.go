@@ -95,8 +95,8 @@ func (node *Node) clone(tree *MutableTree) (*Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		//node.leftNode = nil
-		//node.rightNode = nil
+		node.leftNode = nil
+		node.rightNode = nil
 	}
 
 	return &Node{
@@ -116,24 +116,18 @@ func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
 	if node.leftNode != nil {
 		return node.leftNode, nil
 	}
-	return nil, fmt.Errorf("node not found")
-	//leftNode, err := t.ndb.GetNode(node.leftNodeKey)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return leftNode, nil
+	//return nil, fmt.Errorf("node not found")
+	leftNode := t.pool.Get(node.leftNodeKey)
+	return leftNode, nil
 }
 
 func (node *Node) getRightNode(t *MutableTree) (*Node, error) {
 	if node.rightNode != nil {
 		return node.rightNode, nil
 	}
-	return nil, fmt.Errorf("node not found")
-	//rightNode, err := t.ndb.GetNode(node.rightNodeKey)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return rightNode, nil
+	//return nil, fmt.Errorf("node not found")
+	rightNode := t.pool.Get(node.rightNodeKey)
+	return rightNode, nil
 }
 
 // NOTE: mutates height and size

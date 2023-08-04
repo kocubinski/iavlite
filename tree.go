@@ -12,6 +12,12 @@ type Tree struct {
 	deleted  []*NodeData
 }
 
+func NewTree(db *db) *Tree {
+	return &Tree{
+		db: db,
+	}
+}
+
 func (t *Tree) Get(key []byte) (value []byte, err error) {
 	return []byte{}, nil
 }
@@ -122,8 +128,12 @@ func (t *Tree) Commit() (version int64, err error) {
 }
 
 func (t *Tree) addChanged(old *Node, new *Node) {
-	t.deleted = append(t.deleted, &old.NodeData)
 	t.added = append(t.added, &new.NodeData)
+	// a node without a hash is node which has been added and deleted in the same block
+	// and therefore does not need to be persisted
+	if old.hash != nil {
+		t.deleted = append(t.deleted, &old.NodeData)
+	}
 }
 
 func (t *Tree) rebalance(n *Node) *Node {
@@ -173,6 +183,17 @@ func (t *Tree) rotateRight(n *Node) *Node {
 	n.calcHeightAndSize()
 	node.calcHeightAndSize()
 	return node
+}
+
+func (t *Tree) deepHash(node *Node) []byte {
+	if node.hash != nil {
+		return node.hash
+	}
+	// TODO may need to fetch left/right from db after evictions are in place
+	leftHash := t.deepHash(node.leftNode)
+	rightHash := t.deepHash(node.rightNode)
+	node.hash = t.hasher.Hash(leftHash, rightHash, node.key, node.value)
+	return node.hash
 }
 
 func (t *Tree) NewNode(key []byte, value []byte) *Node {

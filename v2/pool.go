@@ -1,4 +1,4 @@
-package v1
+package v2
 
 type nodePool interface {
 	Get(nodeKey []byte) *Node

@@ -1,4 +1,4 @@
-package v1
+package v2
 
 import (
 	"bytes"
@@ -8,6 +8,8 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/gogo/protobuf/proto"
 )
+
+type nodeCacheKey [12]byte
 
 type NodeDb interface {
 	// QueueNode queues a node for storage.

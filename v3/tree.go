@@ -6,8 +6,9 @@ import (
 )
 
 type MutableTree struct {
-	version int64
-	root    *Node
+	version  int64
+	root     *Node
+	sequence int
 }
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {

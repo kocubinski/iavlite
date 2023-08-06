@@ -8,7 +8,7 @@ import (
 type MutableTree struct {
 	version  int64
 	root     *Node
-	sequence int
+	sequence uint32
 }
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
@@ -25,21 +25,13 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 // NOTE: This function clears leftNode/rigthNode recursively and
 // calls _hash() on the given node.
 func (tree *MutableTree) saveNewNodes(version int64) error {
-	nonce := uint32(0)
 	newNodes := make([]*Node, 0)
 	var recursiveAssignKey func(*Node) ([]byte, error)
 	recursiveAssignKey = func(node *Node) ([]byte, error) {
-		if node.nodeKey != nil {
-			if node.nodeKey.nonce != 0 {
-				return node.nodeKey.GetKey(), nil
-			}
-			return node.hash, nil
+		if node.hash != nil {
+			return node.nodeKey.GetKey(), nil
 		}
-		nonce++
-		node.nodeKey = &NodeKey{
-			version: version,
-			nonce:   nonce,
-		}
+
 		newNodes = append(newNodes, node)
 
 		var err error
@@ -105,7 +97,7 @@ func (tree *MutableTree) set(key []byte, value []byte) (updated bool, err error)
 	}
 
 	if tree.root == nil {
-		tree.root = NewNode(key, value)
+		tree.root = NewNode(tree.NextNodeKey(), key, value)
 		return updated, nil
 	}
 
@@ -123,8 +115,8 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 				key:           node.key,
 				subtreeHeight: 1,
 				size:          2,
-				nodeKey:       nil,
-				leftNode:      NewNode(key, value),
+				nodeKey:       tree.NextNodeKey(),
+				leftNode:      NewNode(tree.NextNodeKey(), key, value),
 				rightNode:     node,
 			}, false, nil
 		case 1: // setKey > leafKey
@@ -132,12 +124,12 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 				key:           key,
 				subtreeHeight: 1,
 				size:          2,
-				nodeKey:       nil,
+				nodeKey:       tree.NextNodeKey(),
 				leftNode:      node,
-				rightNode:     NewNode(key, value),
+				rightNode:     NewNode(tree.NextNodeKey(), key, value),
 			}, false, nil
 		default:
-			return NewNode(key, value), true, nil
+			return NewNode(tree.NextNodeKey(), key, value), true, nil
 		}
 	} else {
 		node, err = node.clone(tree)
@@ -265,4 +257,13 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 	}
 
 	return node, nil, value, removed, nil
+}
+
+func (tree *MutableTree) NextNodeKey() *NodeKey {
+	nk := &NodeKey{
+		version: tree.version,
+		nonce:   tree.sequence,
+	}
+	tree.sequence++
+	return nk
 }

@@ -67,8 +67,9 @@ func (nk *NodeKey) String() string {
 }
 
 // NewNode returns a new node from a key, value and version.
-func NewNode(key []byte, value []byte) *Node {
+func NewNode(nodeKey *NodeKey, key []byte, value []byte) *Node {
 	return &Node{
+		nodeKey:       nodeKey,
 		key:           key,
 		value:         value,
 		subtreeHeight: 0,
@@ -104,7 +105,7 @@ func (node *Node) clone(tree *MutableTree) (*Node, error) {
 		subtreeHeight: node.subtreeHeight,
 		size:          node.size,
 		hash:          nil,
-		nodeKey:       nil,
+		nodeKey:       tree.NextNodeKey(),
 		leftNodeKey:   node.leftNodeKey,
 		rightNodeKey:  node.rightNodeKey,
 		leftNode:      leftNode,
@@ -163,7 +164,7 @@ func maxInt8(a, b int8) int8 {
 // NOTE: assumes that node can be modified
 // TODO: optimize balance & rotate
 func (tree *MutableTree) balance(node *Node) (newSelf *Node, err error) {
-	if node.nodeKey != nil {
+	if node.hash != nil {
 		return nil, fmt.Errorf("unexpected balance() call on persisted node")
 	}
 	balance, err := node.calcBalance(tree)

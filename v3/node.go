@@ -257,6 +257,7 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, error) {
 		return nil, err
 	}
 
+	tree.addOrphan(node.leftNode)
 	newNode, err := node.leftNode.clone(tree)
 	if err != nil {
 		return nil, err
@@ -287,6 +288,7 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, error) {
 		return nil, err
 	}
 
+	tree.addOrphan(node.rightNode)
 	newNode, err := node.rightNode.clone(tree)
 	if err != nil {
 		return nil, err

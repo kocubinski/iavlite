@@ -1,4 +1,4 @@
-package v2
+package v3
 
 import (
 	"crypto/sha256"
@@ -95,36 +95,45 @@ func (node *Node) clone(tree *MutableTree) (*Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		node.leftNode, node.rightNode = nil, nil
+		node.leftNode = nil
+		node.rightNode = nil
 	}
 
-	newNode := tree.NewPoolNode()
-	newNode.key = node.key
-	newNode.subtreeHeight = node.subtreeHeight
-	newNode.size = node.size
-	newNode.leftNodeKey = node.leftNodeKey
-	newNode.rightNodeKey = node.rightNodeKey
-	newNode.leftNode = leftNode
-	newNode.rightNode = rightNode
-	return newNode, nil
+	return &Node{
+		key:           node.key,
+		subtreeHeight: node.subtreeHeight,
+		size:          node.size,
+		hash:          nil,
+		nodeKey:       nil,
+		leftNodeKey:   node.leftNodeKey,
+		rightNodeKey:  node.rightNodeKey,
+		leftNode:      leftNode,
+		rightNode:     rightNode,
+	}, nil
 }
 
 func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
 	if node.leftNode != nil {
 		return node.leftNode, nil
 	}
-	//return nil, fmt.Errorf("node not found")
-	leftNode := t.pool.Get(node.leftNodeKey)
-	return leftNode, nil
+	return nil, fmt.Errorf("node not found")
+	//leftNode, err := t.ndb.GetNode(node.leftNodeKey)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return leftNode, nil
 }
 
 func (node *Node) getRightNode(t *MutableTree) (*Node, error) {
 	if node.rightNode != nil {
 		return node.rightNode, nil
 	}
-	//return nil, fmt.Errorf("node not found")
-	rightNode := t.pool.Get(node.rightNodeKey)
-	return rightNode, nil
+	return nil, fmt.Errorf("node not found")
+	//rightNode, err := t.ndb.GetNode(node.rightNodeKey)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return rightNode, nil
 }
 
 // NOTE: mutates height and size
@@ -154,7 +163,7 @@ func maxInt8(a, b int8) int8 {
 // NOTE: assumes that node can be modified
 // TODO: optimize balance & rotate
 func (tree *MutableTree) balance(node *Node) (newSelf *Node, err error) {
-	if node.hash != nil {
+	if node.nodeKey != nil {
 		return nil, fmt.Errorf("unexpected balance() call on persisted node")
 	}
 	balance, err := node.calcBalance(tree)
@@ -247,7 +256,6 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, error) {
 		return nil, err
 	}
 
-	tree.addOrphan(node.leftNode)
 	newNode, err := node.leftNode.clone(tree)
 	if err != nil {
 		return nil, err
@@ -278,7 +286,6 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, error) {
 		return nil, err
 	}
 
-	tree.addOrphan(node.rightNode)
 	newNode, err := node.rightNode.clone(tree)
 	if err != nil {
 		return nil, err

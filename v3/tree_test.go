@@ -1,4 +1,4 @@
-package v2
+package v3
 
 import (
 	"fmt"
@@ -15,11 +15,10 @@ const logDir = "/Users/mattk/src/scratch/osmosis-hist/bank-ordered/"
 const until = 10
 
 //const until = 300_000
-// const until = 1_500_000
+//const until = 1_500_000
 
 func TestTree_Build(t *testing.T) {
-	tree := NewMutableTree()
-	tree.pool = newNodePool()
+	tree := MutableTree{}
 
 	lastVersion := int64(1)
 	var (
@@ -63,8 +62,8 @@ func TestTree_Build(t *testing.T) {
 		cnt++
 	}
 	fmt.Printf("final version: %d, hash: %x\n", version, hash)
-	// require.Equal(t, fmt.Sprintf("%x", hash), "ebc23d2e4e43075bae7ebc1e5db9d5e99acbafaa644b7c710213e109c8592099")
-	// require.Equal(t, version, int64(1_500_000))
+	//require.Equal(t, fmt.Sprintf("%x", hash), "ebc23d2e4e43075bae7ebc1e5db9d5e99acbafaa644b7c710213e109c8592099")
+	//require.Equal(t, version, int64(1_500_000))
 
 	require.Equal(t, fmt.Sprintf("%x", hash), "50a08008a29d76f3502d0a60c9e193a13efa6037a79a9f794652e1f97c2bbc16")
 	require.Equal(t, version, int64(300_000))

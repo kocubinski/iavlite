@@ -62,6 +62,8 @@ func (tree *MutableTree) saveNewNodes(version int64) error {
 		return err
 	}
 
+	fmt.Printf("version %d, newNodes: %v, size: %d\n", version, len(newNodes), tree.root.size)
+
 	//for _, node := range newNodes {
 	//if err := tree.ndb.SaveNode(node); err != nil {
 	//	return err

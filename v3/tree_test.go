@@ -18,7 +18,9 @@ const until = 10
 //const until = 1_500_000
 
 func TestTree_Build(t *testing.T) {
-	tree := MutableTree{}
+	tree := MutableTree{
+		pool: newNodePool(),
+	}
 
 	lastVersion := int64(1)
 	var (

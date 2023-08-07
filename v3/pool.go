@@ -30,6 +30,22 @@ func (node *Node) Reset() {
 	node.size = 0
 }
 
+func (p *trivialNodePool) ClonePoolNode(node *Node) *Node {
+	poolNode := p.NewNode(node.nodeKey)
+	poolNode.key = node.key
+	poolNode.value = node.value
+	poolNode.hash = node.hash
+	poolNode.leftNodeKey = node.leftNodeKey
+	poolNode.rightNodeKey = node.rightNodeKey
+	poolNode.subtreeHeight = node.subtreeHeight
+	poolNode.size = node.size
+	return poolNode
+}
+
+func (node *Node) IsGhost() bool {
+	return node.nodeKey == nil
+}
+
 const poolSize = 2_000_000
 
 type trivialNodePool struct {

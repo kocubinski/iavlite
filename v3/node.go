@@ -117,24 +117,22 @@ func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
 	if node.leftNode != nil {
 		return node.leftNode, nil
 	}
-	return nil, fmt.Errorf("node not found")
-	//leftNode, err := t.ndb.GetNode(node.leftNodeKey)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return leftNode, nil
+	n := t.pool.Get(node.leftNodeKey)
+	if n == nil {
+		return nil, fmt.Errorf("node not found")
+	}
+	return n, nil
 }
 
 func (node *Node) getRightNode(t *MutableTree) (*Node, error) {
 	if node.rightNode != nil {
 		return node.rightNode, nil
 	}
-	return nil, fmt.Errorf("node not found")
-	//rightNode, err := t.ndb.GetNode(node.rightNodeKey)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return rightNode, nil
+	n := t.pool.Get(node.rightNodeKey)
+	if n == nil {
+		return nil, fmt.Errorf("node not found")
+	}
+	return n, nil
 }
 
 // NOTE: mutates height and size
@@ -320,6 +318,20 @@ func (node *Node) _hash(version int64) []byte {
 	h := sha256.New()
 	if err := node.writeHashBytes(h, version); err != nil {
 		return nil
+	}
+	node.hash = h.Sum(nil)
+
+	return node.hash
+}
+
+func (node *Node) mustHash(version int64) []byte {
+	if node.hash != nil {
+		return node.hash
+	}
+
+	h := sha256.New()
+	if err := node.writeHashBytes(h, version); err != nil {
+		panic(err)
 	}
 	node.hash = h.Sum(nil)
 

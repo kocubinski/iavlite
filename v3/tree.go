@@ -6,22 +6,31 @@ import (
 )
 
 type MutableTree struct {
-	version  int64
+	version int64
+	//ghostRoot *GhostNode
 	root     *Node
 	sequence uint32
 	orphans  []*Node
+	pool     *trivialNodePool
 }
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
+	// TODO increment this before first Set
 	version := tree.version + 1
 	if err := tree.saveNewNodes(version); err != nil {
 		return nil, 0, err
 	}
 	tree.version = version
+
 	fmt.Printf("tree.version: %d; orphans :%d\n", tree.version, len(tree.orphans))
 	tree.orphans = nil
+	tree.sequence = 1
 
-	return tree.root.hash, version, nil
+	//tree.ghostRoot = tree.root.Fade()
+	rootHash := tree.root.hash
+	//tree.root = nil
+
+	return rootHash, version, nil
 }
 
 // saveNewNodes save new created nodes by the changes of the working tree.
@@ -29,10 +38,10 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 // calls _hash() on the given node.
 func (tree *MutableTree) saveNewNodes(version int64) error {
 	newNodes := make([]*Node, 0)
-	var recursiveAssignKey func(*Node) ([]byte, error)
-	recursiveAssignKey = func(node *Node) ([]byte, error) {
+	var recursiveAssignKey func(*Node) (*Node, []byte, error)
+	recursiveAssignKey = func(node *Node) (*Node, []byte, error) {
 		if node.hash != nil {
-			return node.nodeKey.GetKey(), nil
+			return node, node.nodeKey.GetKey(), nil
 		}
 
 		newNodes = append(newNodes, node)
@@ -40,30 +49,31 @@ func (tree *MutableTree) saveNewNodes(version int64) error {
 		var err error
 		// the inner nodes should have two children.
 		if node.subtreeHeight > 0 {
-			node.leftNodeKey, err = recursiveAssignKey(node.leftNode)
+			_, node.leftNodeKey, err = recursiveAssignKey(node.leftNode)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			node.rightNodeKey, err = recursiveAssignKey(node.rightNode)
+			_, node.rightNodeKey, err = recursiveAssignKey(node.rightNode)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
+		if node.nodeKey.String() == "(0, 1856861)" {
+			fmt.Println("v1 root")
+		}
 
-		node._hash(version)
-		return node.nodeKey.GetKey(), nil
+		node.mustHash(version)
+		node.leftNode, node.rightNode = nil, nil
+
+		poolNode := tree.pool.ClonePoolNode(node)
+		return poolNode, poolNode.nodeKey.GetKey(), nil
 	}
 
-	if _, err := recursiveAssignKey(tree.root); err != nil {
+	var err error
+	tree.root, _, err = recursiveAssignKey(tree.root)
+	if err != nil {
 		return err
 	}
-
-	//for _, node := range newNodes {
-	//if err := tree.ndb.SaveNode(node); err != nil {
-	//	return err
-	//}
-	//node.leftNode, node.rightNode = nil, nil
-	//}
 
 	return nil
 }
@@ -102,6 +112,12 @@ func (tree *MutableTree) set(key []byte, value []byte) (updated bool, err error)
 	if tree.root == nil {
 		tree.root = NewNode(tree.NextNodeKey(), key, value)
 		return updated, nil
+		//if tree.ghostRoot != nil {
+		//	tree.root = tree.ghostRoot.Incorporate(tree.pool)
+		//} else {
+		//	tree.root = NewNode(tree.NextNodeKey(), key, value)
+		//	return updated, nil
+		//}
 	}
 
 	tree.root, updated, err = tree.recursiveSet(tree.root, key, value)
@@ -111,6 +127,9 @@ func (tree *MutableTree) set(key []byte, value []byte) (updated bool, err error)
 func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 	newSelf *Node, updated bool, err error,
 ) {
+	if node.nodeKey.nonce == 1856709 {
+		fmt.Printf("recursiveSet: %s\n", node.nodeKey.String())
+	}
 	if node.isLeaf() {
 		switch bytes.Compare(key, node.key) {
 		case -1: // setKey < leafKey
@@ -202,6 +221,10 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 		return node, nil, nil, false, nil
 	}
 
+	if node.nodeKey.nonce == 1856709 {
+		fmt.Printf("recursiveRemove: %s\n", node.nodeKey.String())
+	}
+
 	node, err = node.clone(tree)
 	if err != nil {
 		return nil, nil, nil, false, err
@@ -275,5 +298,7 @@ func (tree *MutableTree) NextNodeKey() *NodeKey {
 }
 
 func (tree *MutableTree) addOrphan(node *Node) {
-	tree.orphans = append(tree.orphans, node)
+	if node.hash != nil {
+		tree.orphans = append(tree.orphans, node)
+	}
 }

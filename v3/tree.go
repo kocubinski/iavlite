@@ -11,7 +11,7 @@ type MutableTree struct {
 	root     *Node
 	sequence uint32
 	orphans  []*Node
-	pool     *trivialNodePool
+	pool     *naivePool
 }
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
@@ -41,10 +41,10 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 // calls _hash() on the given node.
 func (tree *MutableTree) saveNewNodes(version int64) error {
 	newNodes := make([]*Node, 0)
-	var recursiveAssignKey func(*Node) (*Node, []byte, error)
-	recursiveAssignKey = func(node *Node) (*Node, []byte, error) {
+	var recursiveAssignKey func(*Node) (n *Node, frameId int, nodeKey []byte, err error)
+	recursiveAssignKey = func(node *Node) (*Node, int, []byte, error) {
 		if node.hash != nil {
-			return node, node.nodeKey.GetKey(), nil
+			return node, node.frameId, node.nodeKey.GetKey(), nil
 		}
 
 		newNodes = append(newNodes, node)
@@ -52,13 +52,13 @@ func (tree *MutableTree) saveNewNodes(version int64) error {
 		var err error
 		// the inner nodes should have two children.
 		if node.subtreeHeight > 0 {
-			_, node.leftNodeKey, err = recursiveAssignKey(node.leftNode)
+			_, node.leftFrameId, node.leftNodeKey, err = recursiveAssignKey(node.leftNode)
 			if err != nil {
-				return nil, nil, err
+				return nil, 0, nil, err
 			}
-			_, node.rightNodeKey, err = recursiveAssignKey(node.rightNode)
+			_, node.rightFrameId, node.rightNodeKey, err = recursiveAssignKey(node.rightNode)
 			if err != nil {
-				return nil, nil, err
+				return nil, 0, nil, err
 			}
 		}
 
@@ -66,11 +66,11 @@ func (tree *MutableTree) saveNewNodes(version int64) error {
 		node.leftNode, node.rightNode = nil, nil
 
 		poolNode := tree.pool.ClonePoolNode(node)
-		return poolNode, poolNode.nodeKey.GetKey(), nil
+		return poolNode, poolNode.frameId, poolNode.nodeKey.GetKey(), nil
 	}
 
 	var err error
-	tree.root, _, err = recursiveAssignKey(tree.root)
+	tree.root, _, _, err = recursiveAssignKey(tree.root)
 	if err != nil {
 		return err
 	}

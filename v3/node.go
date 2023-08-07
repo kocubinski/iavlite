@@ -59,6 +59,10 @@ type Node struct {
 	leftNode      *Node
 	rightNode     *Node
 	subtreeHeight int8
+
+	frameId      int
+	leftFrameId  int
+	rightFrameId int
 }
 
 // String returns a string representation of the node key.
@@ -117,7 +121,8 @@ func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
 	if node.leftNode != nil {
 		return node.leftNode, nil
 	}
-	n := t.pool.Get(node.leftNodeKey)
+	//n := t.pool.Get(node.leftNodeKey)
+	n := t.pool.GetByFrameId(node.leftFrameId, node.leftNodeKey)
 	if n == nil {
 		return nil, fmt.Errorf("node not found")
 	}
@@ -128,7 +133,8 @@ func (node *Node) getRightNode(t *MutableTree) (*Node, error) {
 	if node.rightNode != nil {
 		return node.rightNode, nil
 	}
-	n := t.pool.Get(node.rightNodeKey)
+	n := t.pool.GetByFrameId(node.rightFrameId, node.rightNodeKey)
+	//n := t.pool.Get(node.rightNodeKey)
 	if n == nil {
 		return nil, fmt.Errorf("node not found")
 	}

@@ -1,5 +1,7 @@
 package v3
 
+import "bytes"
+
 type nodePool interface {
 	Get(nodeKey []byte) *Node
 	SaveNode(*Node)
@@ -28,9 +30,12 @@ func (node *Node) Reset() {
 	node.leftNodeKey = nil
 	node.subtreeHeight = 0
 	node.size = 0
+	node.frameId = 0
+	node.leftFrameId = 0
+	node.rightFrameId = 0
 }
 
-func (p *trivialNodePool) ClonePoolNode(node *Node) *Node {
+func (p *naivePool) ClonePoolNode(node *Node) *Node {
 	poolNode := p.NewNode(node.nodeKey)
 	poolNode.key = node.key
 	poolNode.value = node.value
@@ -39,6 +44,9 @@ func (p *trivialNodePool) ClonePoolNode(node *Node) *Node {
 	poolNode.rightNodeKey = node.rightNodeKey
 	poolNode.subtreeHeight = node.subtreeHeight
 	poolNode.size = node.size
+
+	poolNode.leftFrameId = node.leftFrameId
+	poolNode.rightFrameId = node.rightFrameId
 	return poolNode
 }
 
@@ -48,7 +56,7 @@ func (node *Node) IsGhost() bool {
 
 const poolSize = 3_000_000
 
-type trivialNodePool struct {
+type naivePool struct {
 	// simulates a backing database
 	nodeDb map[nodeCacheKey]*Node
 
@@ -57,8 +65,8 @@ type trivialNodePool struct {
 	nodes     [poolSize]*Node
 }
 
-func newNodePool() *trivialNodePool {
-	pool := &trivialNodePool{
+func newNodePool() *naivePool {
+	pool := &naivePool{
 		nodeDb:    make(map[nodeCacheKey]*Node),
 		freeList:  make([]int, 0, poolSize),
 		nodeTable: make(map[nodeCacheKey]int),
@@ -71,7 +79,7 @@ func newNodePool() *trivialNodePool {
 	return pool
 }
 
-func (p *trivialNodePool) NewNode(nodeKey *NodeKey) *Node {
+func (p *naivePool) NewNode(nodeKey *NodeKey) *Node {
 	if len(p.freeList) == 0 {
 		panic("pool exhausted")
 	}
@@ -84,10 +92,11 @@ func (p *trivialNodePool) NewNode(nodeKey *NodeKey) *Node {
 	n := p.nodes[id]
 	n.Reset()
 	n.nodeKey = nodeKey
+	n.frameId = id
 	return n
 }
 
-func (p *trivialNodePool) ReturnNode(node *Node) {
+func (p *naivePool) ReturnNode(node *Node) {
 	var nk nodeCacheKey
 	copy(nk[:], node.nodeKey.GetKey())
 	id, ok := p.nodeTable[nk]
@@ -98,7 +107,7 @@ func (p *trivialNodePool) ReturnNode(node *Node) {
 	delete(p.nodeTable, nk)
 }
 
-func (p *trivialNodePool) Get(nodeKey []byte) *Node {
+func (p *naivePool) Get(nodeKey []byte) *Node {
 	var nk nodeCacheKey
 	copy(nk[:], nodeKey)
 	id, ok := p.nodeTable[nk]
@@ -109,14 +118,22 @@ func (p *trivialNodePool) Get(nodeKey []byte) *Node {
 	}
 }
 
-func (p *trivialNodePool) DeleteNode(node *Node) {
+func (p *naivePool) GetByFrameId(frameId int, nodeKey []byte) *Node {
+	fn := p.nodes[frameId]
+	if bytes.Compare(fn.nodeKey.GetKey(), nodeKey) != 0 {
+		panic("TODO; fetch from db and push to pool")
+	}
+	return fn
+}
+
+func (p *naivePool) DeleteNode(node *Node) {
 	var nk nodeCacheKey
 	copy(nk[:], node.nodeKey.GetKey())
 	delete(p.nodeDb, nk)
 	p.ReturnNode(node)
 }
 
-func (p *trivialNodePool) SaveNode(node *Node) {
+func (p *naivePool) SaveNode(node *Node) {
 	var nk nodeCacheKey
 	copy(nk[:], node.nodeKey.GetKey())
 	p.nodeDb[nk] = node

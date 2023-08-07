@@ -20,9 +20,12 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	if err := tree.saveNewNodes(version); err != nil {
 		return nil, 0, err
 	}
+	for _, orphan := range tree.orphans {
+		tree.pool.DeleteNode(orphan)
+	}
 	tree.version = version
 
-	fmt.Printf("tree.version: %d; orphans :%d\n", tree.version, len(tree.orphans))
+	//fmt.Printf("tree.version: %d; orphans :%d\n", tree.version, len(tree.orphans))
 	tree.orphans = nil
 	tree.sequence = 1
 
@@ -57,9 +60,6 @@ func (tree *MutableTree) saveNewNodes(version int64) error {
 			if err != nil {
 				return nil, nil, err
 			}
-		}
-		if node.nodeKey.String() == "(0, 1856861)" {
-			fmt.Println("v1 root")
 		}
 
 		node.mustHash(version)
@@ -127,9 +127,6 @@ func (tree *MutableTree) set(key []byte, value []byte) (updated bool, err error)
 func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 	newSelf *Node, updated bool, err error,
 ) {
-	if node.nodeKey.nonce == 1856709 {
-		fmt.Printf("recursiveSet: %s\n", node.nodeKey.String())
-	}
 	if node.isLeaf() {
 		switch bytes.Compare(key, node.key) {
 		case -1: // setKey < leafKey

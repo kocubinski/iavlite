@@ -46,7 +46,7 @@ func (node *Node) IsGhost() bool {
 	return node.nodeKey == nil
 }
 
-const poolSize = 2_000_000
+const poolSize = 3_000_000
 
 type trivialNodePool struct {
 	// simulates a backing database

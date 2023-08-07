@@ -218,10 +218,6 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 		return node, nil, nil, false, nil
 	}
 
-	if node.nodeKey.nonce == 1856709 {
-		fmt.Printf("recursiveRemove: %s\n", node.nodeKey.String())
-	}
-
 	node, err = node.clone(tree)
 	if err != nil {
 		return nil, nil, nil, false, err

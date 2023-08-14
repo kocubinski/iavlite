@@ -59,13 +59,14 @@ func TestTreeBuild(t *testing.T, opts TreeBuildOptions) {
 	var (
 		hash    []byte
 		version int64
-		cnt     int
+		cnt     int64
 		since   = time.Now()
 	)
 
 	stream := &compact.StreamingContext{}
 	itr, err := stream.NewIterator(opts.ChangelogDir)
 	require.NoError(t, err)
+	itrStart := time.Now()
 	for ; itr.Valid(); err = itr.Next() {
 		require.NoError(t, err)
 		node := itr.Node
@@ -95,6 +96,7 @@ func TestTreeBuild(t *testing.T, opts TreeBuildOptions) {
 		cnt++
 	}
 	fmt.Printf("final version: %d, hash: %x\n", version, hash)
+	fmt.Printf("mean leaves/s %s\n", humanize.Comma(int64(cnt/int64(time.Since(itrStart).Seconds()))))
 	require.Equal(t, fmt.Sprintf("%x", hash), opts.UntilHash)
 	require.Equal(t, version, opts.Until)
 }

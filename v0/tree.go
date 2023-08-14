@@ -29,13 +29,13 @@ func (t *Tree) Get(key []byte) (value []byte, err error) {
 	return []byte{}, nil
 }
 
-func (t *Tree) Set(key []byte, value []byte) (err error) {
+func (t *Tree) Set(key []byte, value []byte) (updated bool, err error) {
 	if t.root == nil {
 		t.root = t.NewNode(key, value)
-		return nil
+		return false, nil
 	}
-	t.root, _ = t.set(t.root, key, value)
-	return nil
+	t.root, updated = t.set(t.root, key, value)
+	return updated, nil
 }
 
 func (t *Tree) set(node *Node, key []byte, value []byte) (*Node, bool) {
@@ -78,9 +78,9 @@ func (t *Tree) set(node *Node, key []byte, value []byte) (*Node, bool) {
 	return newNode, updated
 }
 
-func (t *Tree) Remove(key []byte) (value []byte) {
+func (t *Tree) Remove(key []byte) (value []byte, deleted bool, err error) {
 	value, t.root = t.remove(t.root, key)
-	return value
+	return value, true, nil
 }
 
 func (t *Tree) remove(node *Node, key []byte) (value []byte, updated *Node) {

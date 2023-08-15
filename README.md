@@ -59,6 +59,6 @@ limiting factor on a live chain so probably not worth optimizing further.
 
 ## TODO
 
-- Better averaging of throughput
 - Memory and buffer pool metrics
-- MemIAVL implementation
+- Use unsafe.Pointer instead of frameId to process nodes in tree traversals.
+

@@ -96,7 +96,7 @@ func TestTreeBuild(t *testing.T, opts TreeBuildOptions) {
 		cnt++
 	}
 	fmt.Printf("final version: %d, hash: %x\n", version, hash)
-	fmt.Printf("mean leaves/s %s\n", humanize.Comma(int64(cnt/int64(time.Since(itrStart).Seconds()))))
+	fmt.Printf("mean leaves/ms %s\n", humanize.Comma(cnt/time.Since(itrStart).Milliseconds()))
 	require.Equal(t, fmt.Sprintf("%x", hash), opts.UntilHash)
 	require.Equal(t, version, opts.Until)
 }

@@ -111,6 +111,28 @@ func (node *Node) clone(tree *MutableTree) (*Node, error) {
 	}, nil
 }
 
+func (node *Node) reset() {
+	node.mustChildren(nil)
+	node.hash = nil
+	node.nodeKey = nil
+}
+
+func (node *Node) mustChildren(t *MutableTree) {
+	var err error
+	if node.leftNode == nil {
+		node.leftNode, err = node.getLeftNode(t)
+		if err != nil {
+			panic(err)
+		}
+	}
+	if node.rightNode == nil {
+		node.rightNode, err = node.getRightNode(t)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
 func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
 	if node.leftNode != nil {
 		return node.leftNode, nil
@@ -250,15 +272,10 @@ func (node *Node) calcBalance(t *MutableTree) (int, error) {
 func (tree *MutableTree) rotateRight(node *Node) (*Node, error) {
 	var err error
 	// TODO: optimize balance & rotate.
-	node, err = node.clone(tree)
-	if err != nil {
-		return nil, err
-	}
+	node.reset()
 
-	newNode, err := node.leftNode.clone(tree)
-	if err != nil {
-		return nil, err
-	}
+	newNode := node.leftNode
+	newNode.reset()
 
 	node.leftNode = newNode.rightNode
 	newNode.rightNode = node
@@ -280,15 +297,9 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, error) {
 func (tree *MutableTree) rotateLeft(node *Node) (*Node, error) {
 	var err error
 	// TODO: optimize balance & rotate.
-	node, err = node.clone(tree)
-	if err != nil {
-		return nil, err
-	}
-
-	newNode, err := node.rightNode.clone(tree)
-	if err != nil {
-		return nil, err
-	}
+	node.reset()
+	newNode := node.rightNode
+	newNode.reset()
 
 	node.rightNode = newNode.leftNode
 	newNode.leftNode = node
@@ -314,7 +325,7 @@ func (node *Node) _hash(version int64) []byte {
 	}
 
 	h := sha256.New()
-	if err := node.writeHashBytes(h, version); err != nil {
+	if err := node.writeHashBytes2(h, version); err != nil {
 		return nil
 	}
 	node.hash = h.Sum(nil)
@@ -369,4 +380,60 @@ func (node *Node) writeHashBytes(w io.Writer, version int64) error {
 	}
 
 	return nil
+}
+func (node *Node) writeHashBytes2(w io.Writer, version int64) error {
+	var (
+		n   int
+		buf [binary.MaxVarintLen64]byte
+	)
+
+	n = binary.PutVarint(buf[:], int64(node.subtreeHeight))
+	if _, err := w.Write(buf[0:n]); err != nil {
+		return fmt.Errorf("writing height, %w", err)
+	}
+	n = binary.PutVarint(buf[:], node.size)
+	if _, err := w.Write(buf[0:n]); err != nil {
+		return fmt.Errorf("writing size, %w", err)
+	}
+	n = binary.PutVarint(buf[:], version)
+	if _, err := w.Write(buf[0:n]); err != nil {
+		return fmt.Errorf("writing version, %w", err)
+	}
+
+	// Key is not written for inner nodes, unlike writeBytes.
+
+	if node.isLeaf() {
+		if err := EncodeBytes(w, node.key); err != nil {
+			return fmt.Errorf("writing key, %w", err)
+		}
+
+		// Indirection needed to provide proofs without values.
+		// (e.g. ProofLeafNode.ValueHash)
+		valueHash := sha256.Sum256(node.value)
+
+		if err := EncodeBytes(w, valueHash[:]); err != nil {
+			return fmt.Errorf("writing value, %w", err)
+		}
+	} else {
+		if err := EncodeBytes(w, node.leftNode.hash); err != nil {
+			return fmt.Errorf("writing left hash, %w", err)
+		}
+		if err := EncodeBytes(w, node.rightNode.hash); err != nil {
+			return fmt.Errorf("writing right hash, %w", err)
+		}
+	}
+
+	return nil
+}
+
+// EncodeBytes writes a varint length-prefixed byte slice to the writer,
+// it's used for hash computation, must be compactible with the official IAVL implementation.
+func EncodeBytes(w io.Writer, bz []byte) error {
+	var buf [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(buf[:], uint64(len(bz)))
+	if _, err := w.Write(buf[0:n]); err != nil {
+		return err
+	}
+	_, err := w.Write(bz)
+	return err
 }

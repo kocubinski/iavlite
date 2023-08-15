@@ -49,6 +49,14 @@ processed 19,200,000 leaves in 1.327169625s; 75,348 leaves/s
 processed 19,300,000 leaves in 1.08690575s; 92,004 leaves/s 
 ```
 
+### v4
+
+legacy implementation with `node.reset()` instead of `node.clone()` to reset nodes to relieve GC pressure. 
+Includes a parallel hash `writeHashBytes2` which uses the stdlib `binary` package instead of 
+`internal/encoding` to write bytes.  Overall increased throughput mostly due to `reset()`.  Still behind 
+`memiavl` on GC cycles but this is probably due to (de)allocation of nodekey byte arrays.  GC won't be the 
+limiting factor on a live chain so probably not worth optimizing further.
+
 ## TODO
 
 - Better averaging of throughput

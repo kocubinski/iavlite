@@ -11,19 +11,38 @@ type MutableTree struct {
 }
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
-	version := tree.version + 1
-	if err := tree.saveNewNodes(version); err != nil {
-		return nil, 0, err
-	}
-	tree.version = version
+	tree.version++
+	//if err := tree.saveNewNodes(); err != nil {
+	//	tree.version--
+	//	return nil, 0, err
+	//}
+	tree.deepHash(0, tree.root)
 
-	return tree.root.hash, version, nil
+	return tree.root.hash, tree.version, nil
+}
+
+func (tree *MutableTree) deepHash(sequence uint32, node *Node) (hash []byte) {
+	if node.hash != nil {
+		return node.hash
+	}
+	sequence++
+	node.nodeKey = &NodeKey{
+		version: tree.version,
+		nonce:   sequence,
+	}
+	if node.subtreeHeight > 0 {
+		// wrong, should be nodekey assignment, but just profiling for now.
+		node.leftNodeKey = tree.deepHash(sequence, node.leftNode)
+		node.rightNodeKey = tree.deepHash(sequence, node.rightNode)
+	}
+	node._hash(tree.version)
+	return node.hash
 }
 
 // saveNewNodes save new created nodes by the changes of the working tree.
 // NOTE: This function clears leftNode/rigthNode recursively and
 // calls _hash() on the given node.
-func (tree *MutableTree) saveNewNodes(version int64) error {
+func (tree *MutableTree) saveNewNodes() error {
 	nonce := uint32(0)
 	newNodes := make([]*Node, 0)
 	var recursiveAssignKey func(*Node) ([]byte, error)
@@ -36,7 +55,7 @@ func (tree *MutableTree) saveNewNodes(version int64) error {
 		}
 		nonce++
 		node.nodeKey = &NodeKey{
-			version: version,
+			version: tree.version,
 			nonce:   nonce,
 		}
 		newNodes = append(newNodes, node)
@@ -54,7 +73,7 @@ func (tree *MutableTree) saveNewNodes(version int64) error {
 			}
 		}
 
-		node._hash(version)
+		node._hash(tree.version)
 		return node.nodeKey.GetKey(), nil
 	}
 
@@ -139,10 +158,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 			return NewNode(key, value), true, nil
 		}
 	} else {
-		node, err = node.clone(tree)
-		if err != nil {
-			return nil, false, err
-		}
+		node.reset()
 
 		if bytes.Compare(key, node.key) < 0 {
 			node.leftNode, updated, err = tree.recursiveSet(node.leftNode, key, value)
@@ -203,7 +219,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 		return node, nil, nil, false, nil
 	}
 
-	node, err = node.clone(tree)
+	node.reset()
 	if err != nil {
 		return nil, nil, nil, false, err
 	}

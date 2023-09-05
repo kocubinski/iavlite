@@ -309,3 +309,12 @@ func (tree *MutableTree) addOrphan(node *Node) {
 func (tree *MutableTree) NewPoolNode() *Node {
 	return tree.pool.NewNode(tree.NextNodeKey())
 }
+func (tree *MutableTree) Size() int64 {
+	root := tree.root.Incorporate(tree.pool)
+	return root.size
+}
+
+func (tree *MutableTree) Height() int8 {
+	root := tree.root.Incorporate(tree.pool)
+	return root.subtreeHeight
+}

@@ -269,3 +269,11 @@ func (t *Tree) FadeNode(node *Node) *Node {
 	t.pushChanged(node, n)
 	return n
 }
+
+func (t *Tree) Size() int64 {
+	return t.root.size
+}
+
+func (t *Tree) Height() int8 {
+	return t.root.height
+}

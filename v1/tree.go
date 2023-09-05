@@ -267,3 +267,11 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 
 	return node, nil, value, removed, nil
 }
+
+func (tree *MutableTree) Size() int64 {
+	return tree.root.size
+}
+
+func (tree *MutableTree) Height() int8 {
+	return tree.root.subtreeHeight
+}

@@ -12,7 +12,7 @@ type MutableTree struct {
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	tree.version++
-	//if err := tree.saveNewNodes(); err != nil {
+	// if err := tree.saveNewNodes(); err != nil {
 	//	tree.version--
 	//	return nil, 0, err
 	//}
@@ -81,7 +81,7 @@ func (tree *MutableTree) saveNewNodes() error {
 		return err
 	}
 
-	//for _, node := range newNodes {
+	// for _, node := range newNodes {
 	//if err := tree.ndb.SaveNode(node); err != nil {
 	//	return err
 	//}
@@ -280,4 +280,12 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 	}
 
 	return node, nil, value, removed, nil
+}
+
+func (tree *MutableTree) Size() int64 {
+	return tree.root.size
+}
+
+func (tree *MutableTree) Height() int8 {
+	return tree.root.subtreeHeight
 }

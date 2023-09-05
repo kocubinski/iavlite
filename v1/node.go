@@ -117,7 +117,7 @@ func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
 		return node.leftNode, nil
 	}
 	return nil, fmt.Errorf("node not found")
-	//leftNode, err := t.ndb.GetNode(node.leftNodeKey)
+	// leftNode, err := t.ndb.GetNode(node.leftNodeKey)
 	//if err != nil {
 	//	return nil, err
 	//}
@@ -129,7 +129,7 @@ func (node *Node) getRightNode(t *MutableTree) (*Node, error) {
 		return node.rightNode, nil
 	}
 	return nil, fmt.Errorf("node not found")
-	//rightNode, err := t.ndb.GetNode(node.rightNodeKey)
+	// rightNode, err := t.ndb.GetNode(node.rightNodeKey)
 	//if err != nil {
 	//	return nil, err
 	//}

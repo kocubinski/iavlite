@@ -54,8 +54,7 @@ func (t *Tree) Remove(key []byte) ([]byte, bool, error) {
 
 // saveVersion increases the version number and optionally updates the hashes
 func (t *Tree) SaveVersion() ([]byte, int64, error) {
-	var hash []byte
-	hash = t.RootHash()
+	hash := t.RootHash()
 
 	if t.version >= uint32(math.MaxUint32) {
 		return nil, 0, errors.New("version overflows uint32")
@@ -147,4 +146,12 @@ func (t *Tree) ScanPostOrder(callback func(node Node) bool) {
 type stackEntry struct {
 	node     Node
 	expanded bool
+}
+
+func (t *Tree) Size() int64 {
+	return t.root.Size()
+}
+
+func (t *Tree) Height() int8 {
+	return int8(t.root.Height())
 }

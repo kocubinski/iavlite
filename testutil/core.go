@@ -6,15 +6,15 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/kocubinski/costor-api/compact"
+	"github.com/kocubinski/iavl-bench/bench"
 	"github.com/stretchr/testify/require"
 )
 
 type TreeBuildOptions struct {
-	ChangelogDir string
-	Tree         Tree
-	Until        int64
-	UntilHash    string
+	Tree      Tree
+	Until     int64
+	UntilHash string
+	Iterator  bench.ChangesetIterator
 }
 
 func (opts TreeBuildOptions) With20_000() TreeBuildOptions {
@@ -39,9 +39,18 @@ func (opts TreeBuildOptions) With1_500_000() TreeBuildOptions {
 }
 
 func NewTreeBuildOptions(tree Tree) TreeBuildOptions {
+	var seed int64 = 1234
+	var versions int64 = 10_000_000
+	bankGen := bench.BankLikeGenerator(seed, versions)
+	lockupGen := bench.LockupLikeGenerator(seed, versions)
+	stakingGen := bench.StakingLikeGenerator(seed, versions)
+	itr, err := bench.NewChangesetIterators([]bench.ChangesetGenerator{bankGen, lockupGen, stakingGen})
+	if err != nil {
+		panic(err)
+	}
 	opts := TreeBuildOptions{
-		ChangelogDir: "../testdata/changelogs/full/",
-		Tree:         tree,
+		Tree:     tree,
+		Iterator: itr,
 	}
 	return opts.With20_000()
 }
@@ -57,45 +66,42 @@ type Tree interface {
 func TestTreeBuild(t *testing.T, opts TreeBuildOptions) {
 	tree := opts.Tree
 
-	lastVersion := int64(1)
 	var (
 		hash    []byte
 		version int64
-		cnt     int64
-		since   = time.Now()
+		cnt     int64 = 1
+		since         = time.Now()
+		err     error
 	)
 
-	stream := &compact.StreamingContext{}
-	itr, err := stream.NewIterator(opts.ChangelogDir)
-	require.NoError(t, err)
 	itrStart := time.Now()
+	itr := opts.Iterator
 	for ; itr.Valid(); err = itr.Next() {
 		require.NoError(t, err)
-		node := itr.Node
-		if !node.Delete {
-			_, err = tree.Set(node.Key, node.Value)
-			require.NoError(t, err)
-		} else {
-			_, _, err := tree.Remove(node.Key)
-			require.NoError(t, err)
-		}
-
-		if node.Block > lastVersion {
-			hash, version, err = tree.SaveVersion()
-			require.NoError(t, err)
-			if version == opts.Until {
-				break
+		for _, node := range itr.GetChangeset().Nodes {
+			if !node.Delete {
+				_, err = tree.Set(node.Key, node.Value)
+				require.NoError(t, err)
+			} else {
+				_, _, err := tree.Remove(node.Key)
+				require.NoError(t, err)
 			}
-			lastVersion = node.Block
+
+			if cnt%100_000 == 0 {
+				fmt.Printf("processed %s leaves in %s; %s leaves/s; version=%d\n",
+					humanize.Comma(int64(cnt)),
+					time.Since(since),
+					humanize.Comma(int64(100_000/time.Since(since).Seconds())),
+					version)
+				since = time.Now()
+			}
+			cnt++
 		}
-		if cnt%100_000 == 0 {
-			fmt.Printf("processed %s leaves in %s; %s leaves/s\n",
-				humanize.Comma(int64(cnt)),
-				time.Since(since),
-				humanize.Comma(int64(100_000/time.Since(since).Seconds())))
-			since = time.Now()
+		hash, version, err = tree.SaveVersion()
+		require.NoError(t, err)
+		if version == opts.Until {
+			break
 		}
-		cnt++
 	}
 	fmt.Printf("final version: %d, hash: %x\n", version, hash)
 	fmt.Printf("height: %d, size: %d\n", tree.Height(), tree.Size())

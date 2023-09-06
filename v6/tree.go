@@ -219,7 +219,10 @@ func (tree *MutableTree) set(key []byte, value []byte) (updated bool, err error)
 	}
 
 	if tree.root == nil {
-		tree.root = NewNode(key, value)
+		tree.root = tree.pool.Get()
+		tree.root.key = key
+		tree.root.value = value
+		tree.root.size = 1
 		return updated, nil
 	}
 

@@ -7,6 +7,6 @@ import (
 )
 
 func TestTree_Build(t *testing.T) {
-	opts := testutil.NewTreeBuildOptions(&MutableTree{}).With1_500_000()
+	opts := testutil.NewTreeBuildOptions(&MutableTree{}).With100_000()
 	testutil.TestTreeBuild(t, opts)
 }

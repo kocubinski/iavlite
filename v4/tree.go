@@ -219,7 +219,6 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 		return node, nil, nil, false, nil
 	}
 
-	node.reset()
 	if err != nil {
 		return nil, nil, nil, false, err
 	}
@@ -238,6 +237,8 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 		if newLeftNode == nil { // left node held value, was removed
 			return node.rightNode, node.key, value, removed, nil
 		}
+
+		node.reset()
 
 		node.leftNode = newLeftNode
 		err = node.calcHeightAndSize(tree)
@@ -264,6 +265,8 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 	if newRightNode == nil { // right node held value, was removed
 		return node.leftNode, nil, value, removed, nil
 	}
+
+	node.reset()
 
 	node.rightNode = newRightNode
 	if newKey != nil {

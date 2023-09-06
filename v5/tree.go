@@ -328,7 +328,7 @@ func (tree *MutableTree) Height() int8 {
 }
 
 func (tree *MutableTree) addOrphan(n *Node) {
-	if n.hash != nil {
-		tree.orphans = append(tree.orphans, n.nodeKey)
-	}
+	//if n.hash != nil {
+	//	tree.orphans = append(tree.orphans, n.nodeKey)
+	//}
 }

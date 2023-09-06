@@ -10,6 +10,6 @@ func TestTree_Build(t *testing.T) {
 	tree := &MutableTree{
 		pool: newNodePool(),
 	}
-	opts := testutil.NewTreeBuildOptions(tree).With300_000()
+	opts := testutil.NewTreeBuildOptions(tree).With1_500_000()
 	testutil.TestTreeBuild(t, opts)
 }

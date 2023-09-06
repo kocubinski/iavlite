@@ -2,9 +2,21 @@ package v3
 
 import "bytes"
 
-type poolNode struct {
-	*Node
-	pinned bool
+type nodePool interface {
+	Get(nodeKey []byte) *Node
+	SaveNode(*Node)
+	DeleteNode(*Node)
+}
+
+type GhostNode []byte
+
+func (g *GhostNode) Incorporate(pool nodePool) *Node {
+	return pool.Get(*g)
+}
+
+func (node *Node) Fade() *GhostNode {
+	nk := node.nodeKey.GetKey()
+	return (*GhostNode)(&nk)
 }
 
 func (node *Node) Reset() {
@@ -24,18 +36,22 @@ func (node *Node) Reset() {
 }
 
 func (p *naivePool) ClonePoolNode(node *Node) *Node {
-	n := p.NewNode(node.nodeKey)
-	n.key = node.key
-	n.value = node.value
-	n.hash = node.hash
-	n.leftNodeKey = node.leftNodeKey
-	n.rightNodeKey = node.rightNodeKey
-	n.subtreeHeight = node.subtreeHeight
-	n.size = node.size
+	poolNode := p.NewNode(node.nodeKey)
+	poolNode.key = node.key
+	poolNode.value = node.value
+	poolNode.hash = node.hash
+	poolNode.leftNodeKey = node.leftNodeKey
+	poolNode.rightNodeKey = node.rightNodeKey
+	poolNode.subtreeHeight = node.subtreeHeight
+	poolNode.size = node.size
 
-	n.leftFrameId = node.leftFrameId
-	n.rightFrameId = node.rightFrameId
-	return n
+	poolNode.leftFrameId = node.leftFrameId
+	poolNode.rightFrameId = node.rightFrameId
+	return poolNode
+}
+
+func (node *Node) IsGhost() bool {
+	return node.nodeKey == nil
 }
 
 const poolSize = 3_000_000
@@ -44,7 +60,7 @@ type naivePool struct {
 	// simulates a backing database
 	nodeDb map[nodeCacheKey]*Node
 
-	freeList  chan int
+	freeList  []int
 	nodeTable map[nodeCacheKey]int
 	nodes     [poolSize]*Node
 }
@@ -52,12 +68,12 @@ type naivePool struct {
 func newNodePool() *naivePool {
 	pool := &naivePool{
 		nodeDb:    make(map[nodeCacheKey]*Node),
-		freeList:  make(chan int, poolSize),
+		freeList:  make([]int, 0, poolSize),
 		nodeTable: make(map[nodeCacheKey]int),
 		nodes:     [poolSize]*Node{},
 	}
 	for i := 0; i < poolSize; i++ {
-		pool.freeList <- i
+		pool.freeList = append(pool.freeList, i)
 		pool.nodes[i] = &Node{}
 	}
 	return pool
@@ -67,7 +83,8 @@ func (p *naivePool) NewNode(nodeKey *NodeKey) *Node {
 	if len(p.freeList) == 0 {
 		panic("pool exhausted")
 	}
-	id := <-p.freeList
+	var id int
+	id, p.freeList = p.freeList[0], p.freeList[1:]
 
 	var nk nodeCacheKey
 	copy(nk[:], nodeKey.GetKey())
@@ -86,7 +103,7 @@ func (p *naivePool) ReturnNode(node *Node) {
 	if !ok {
 		panic("something awful; node not found in nodeTable")
 	}
-	p.freeList <- id
+	p.freeList = append(p.freeList, id)
 	delete(p.nodeTable, nk)
 }
 

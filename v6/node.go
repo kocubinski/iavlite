@@ -428,6 +428,10 @@ func (node *Node) writeHashBytes2(w io.Writer, version int64) error {
 	return nil
 }
 
+func (node *Node) isLeaf() bool {
+	return node.subtreeHeight == 0
+}
+
 // EncodeBytes writes a varint length-prefixed byte slice to the writer,
 // it's used for hash computation, must be compactible with the official IAVL implementation.
 func EncodeBytes(w io.Writer, bz []byte) error {

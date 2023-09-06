@@ -34,7 +34,6 @@ func (np *nodePool) Get() *Node {
 }
 
 func (np *nodePool) Return(n *Node) {
-	return
 	np.free <- n.frameId
 	np.metrics.PoolReturns++
 	n.clear()

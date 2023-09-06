@@ -17,7 +17,11 @@ func newNodePool() *nodePool {
 	}
 	for i := 0; i < poolSize; i++ {
 		np.free <- i
-		np.nodes[i] = &Node{}
+		np.nodes[i] = &Node{
+			nodeKey:      &emptyNodeKey,
+			leftNodeKey:  &emptyNodeKey,
+			rightNodeKey: &emptyNodeKey,
+		}
 	}
 	return np
 }

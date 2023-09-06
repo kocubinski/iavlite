@@ -80,58 +80,6 @@ func (tree *MutableTree) Height() int8 {
 	return tree.root.subtreeHeight
 }
 
-// saveNewNodes save new created nodes by the changes of the working tree.
-// NOTE: This function clears leftNode/rigthNode recursively and
-// calls _hash() on the given node.
-func (tree *MutableTree) saveNewNodes() error {
-	nonce := uint32(0)
-	newNodes := make([]*Node, 0)
-	var recursiveAssignKey func(*Node) ([]byte, error)
-	recursiveAssignKey = func(node *Node) ([]byte, error) {
-		if node.nodeKey != nil {
-			if node.nodeKey.nonce != 0 {
-				return node.nodeKey.GetKey(), nil
-			}
-			return node.hash, nil
-		}
-		nonce++
-		node.nodeKey = &NodeKey{
-			version: tree.version,
-			nonce:   nonce,
-		}
-		newNodes = append(newNodes, node)
-
-		var err error
-		// the inner nodes should have two children.
-		if node.subtreeHeight > 0 {
-			node.leftNodeKey, err = recursiveAssignKey(node.leftNode)
-			if err != nil {
-				return nil, err
-			}
-			node.rightNodeKey, err = recursiveAssignKey(node.rightNode)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		node._hash(tree.version)
-		return node.nodeKey.GetKey(), nil
-	}
-
-	if _, err := recursiveAssignKey(tree.root); err != nil {
-		return err
-	}
-
-	// for _, node := range newNodes {
-	//if err := tree.ndb.SaveNode(node); err != nil {
-	//	return err
-	//}
-	//node.leftNode, node.rightNode = nil, nil
-	//}
-
-	return nil
-}
-
 // removes the node corresponding to the passed key and balances the tree.
 // It returns:
 // - the hash of the new node (or nil if the node is the one removed)
@@ -295,20 +243,17 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 	}
 }
 
-func (tree *MutableTree) deepHash(sequence uint32, node *Node) (hash []byte) {
+func (tree *MutableTree) deepHash(sequence uint32, node *Node) *nodeKey {
 	if node.hash != nil {
-		return node.hash
+		return node.nodeKey
 	}
 	sequence++
-	node.nodeKey = &NodeKey{
-		version: tree.version,
-		nonce:   sequence,
-	}
+	node.nodeKey = newNodeKey(tree.version, sequence)
 	if node.subtreeHeight > 0 {
 		// wrong, should be nodekey assignment, but just profiling for now.
 		node.leftNodeKey = tree.deepHash(sequence, node.leftNode)
 		node.rightNodeKey = tree.deepHash(sequence, node.rightNode)
 	}
 	node._hash(tree.version)
-	return node.hash
+	return node.nodeKey
 }

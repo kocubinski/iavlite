@@ -9,41 +9,25 @@ import (
 	encoding "github.com/kocubinski/iavlite/internal"
 )
 
-const (
-	// ModeLegacyLeftNode is the mode for legacy left child in the node encoding/decoding.
-	ModeLegacyLeftNode = 0x01
-	// ModeLegacyRightNode is the mode for legacy right child in the node encoding/decoding.
-	ModeLegacyRightNode = 0x02
-)
+const nodeKeySize = 12
 
-// NodeKey represents a key of node in the DB.
-type NodeKey struct {
-	version int64
-	nonce   uint32
+type nodeKey [nodeKeySize]byte
+
+var emptyNodeKey = nodeKey{}
+
+func newNodeKey(version int64, sequence uint32) *nodeKey {
+	nk := new(nodeKey)
+	binary.BigEndian.PutUint64(nk[:], uint64(version))
+	binary.BigEndian.PutUint32(nk[8:], sequence)
+	return nk
 }
 
-// GetKey returns a byte slice of the NodeKey.
-func (nk *NodeKey) GetKey() []byte {
-	b := make([]byte, 12)
-	binary.BigEndian.PutUint64(b, uint64(nk.version))
-	binary.BigEndian.PutUint32(b[8:], nk.nonce)
-	return b
+func (nk *nodeKey) Version() int64 {
+	return int64(binary.BigEndian.Uint64(nk[:]))
 }
 
-// GetNodeKey returns a NodeKey from a byte slice.
-func GetNodeKey(key []byte) *NodeKey {
-	return &NodeKey{
-		version: int64(binary.BigEndian.Uint64(key)),
-		nonce:   binary.BigEndian.Uint32(key[8:]),
-	}
-}
-
-// GetRootKey returns a byte slice of the root node key for the given version.
-func GetRootKey(version int64) []byte {
-	b := make([]byte, 12)
-	binary.BigEndian.PutUint64(b, uint64(version))
-	binary.BigEndian.PutUint32(b[8:], 1)
-	return b
+func (nk *nodeKey) Sequence() uint32 {
+	return binary.BigEndian.Uint32(nk[8:])
 }
 
 // Node represents a node in a Tree.
@@ -51,9 +35,9 @@ type Node struct {
 	key           []byte
 	value         []byte
 	hash          []byte
-	nodeKey       *NodeKey
-	leftNodeKey   []byte
-	rightNodeKey  []byte
+	nodeKey       *nodeKey
+	leftNodeKey   *nodeKey
+	rightNodeKey  *nodeKey
 	size          int64
 	leftNode      *Node
 	rightNode     *Node
@@ -63,54 +47,8 @@ type Node struct {
 }
 
 // String returns a string representation of the node key.
-func (nk *NodeKey) String() string {
-	return fmt.Sprintf("(%d, %d)", nk.version, nk.nonce)
-}
-
-// NewNode returns a new node from a key, value and version.
-func NewNode(key []byte, value []byte) *Node {
-	return &Node{
-		key:           key,
-		value:         value,
-		subtreeHeight: 0,
-		size:          1,
-	}
-}
-
-// clone creates a shallow copy of a node with its hash set to nil.
-func (node *Node) clone(tree *MutableTree) (*Node, error) {
-	if node.isLeaf() {
-		return nil, fmt.Errorf("cannot clone leaf node")
-	}
-
-	// ensure get children
-	var err error
-	leftNode := node.leftNode
-	rightNode := node.rightNode
-	if node.nodeKey != nil {
-		leftNode, err = node.getLeftNode(tree)
-		if err != nil {
-			return nil, err
-		}
-		rightNode, err = node.getRightNode(tree)
-		if err != nil {
-			return nil, err
-		}
-		node.leftNode = nil
-		node.rightNode = nil
-	}
-
-	return &Node{
-		key:           node.key,
-		subtreeHeight: node.subtreeHeight,
-		size:          node.size,
-		hash:          nil,
-		nodeKey:       nil,
-		leftNodeKey:   node.leftNodeKey,
-		rightNodeKey:  node.rightNodeKey,
-		leftNode:      leftNode,
-		rightNode:     rightNode,
-	}, nil
+func (nk *nodeKey) String() string {
+	return fmt.Sprintf("(%d, %d)", nk.Version(), nk.Sequence())
 }
 
 func (node *Node) reset() {

@@ -18,6 +18,13 @@ type TreeBuildOptions struct {
 	Iterator  bench.ChangesetIterator
 }
 
+func (opts TreeBuildOptions) With10_000() TreeBuildOptions {
+	o := &opts
+	o.Until = 10_000
+	o.UntilHash = "460a9098015aef66f2da7f3d81fedf9a439ea3c3cf61723d535d2d94367858d5"
+	return *o
+}
+
 func (opts TreeBuildOptions) With20_000() TreeBuildOptions {
 	o := &opts
 	o.Until = 20_000
@@ -119,6 +126,6 @@ func TestTreeBuild(t *testing.T, opts TreeBuildOptions) {
 	fmt.Printf("final version: %d, hash: %x\n", version, hash)
 	fmt.Printf("height: %d, size: %d\n", tree.Height(), tree.Size())
 	fmt.Printf("mean leaves/ms %s\n", humanize.Comma(cnt/time.Since(itrStart).Milliseconds()))
-	require.Equal(t, fmt.Sprintf("%x", hash), opts.UntilHash)
+	require.Equal(t, opts.UntilHash, fmt.Sprintf("%x", hash))
 	require.Equal(t, version, opts.Until)
 }

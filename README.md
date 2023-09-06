@@ -57,6 +57,11 @@ Includes a parallel hash `writeHashBytes2` which uses the stdlib `binary` packag
 `memiavl` on GC cycles but this is probably due to (de)allocation of nodekey byte arrays.  GC won't be the 
 limiting factor on a live chain so probably not worth optimizing further.
 
+### v5
+
+attempts to iterate on v4 by introducing a node pool without degrading performance by using native go 
+pointers.
+
 ## TODO
 
 - Memory and buffer pool metrics

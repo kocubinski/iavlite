@@ -8,6 +8,7 @@ import (
 type MutableTree struct {
 	version int64
 	root    *Node
+	pool    *nodePool
 }
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
@@ -117,76 +118,6 @@ func (tree *MutableTree) Get(key []byte) ([]byte, error) {
 	return tree.Get(key)
 }
 
-func (tree *MutableTree) set(key []byte, value []byte) (updated bool, err error) {
-	if value == nil {
-		return updated, fmt.Errorf("attempt to store nil value at key '%s'", key)
-	}
-
-	if tree.root == nil {
-		tree.root = NewNode(key, value)
-		return updated, nil
-	}
-
-	tree.root, updated, err = tree.recursiveSet(tree.root, key, value)
-	return updated, err
-}
-
-func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
-	newSelf *Node, updated bool, err error,
-) {
-	if node.isLeaf() {
-		switch bytes.Compare(key, node.key) {
-		case -1: // setKey < leafKey
-			return &Node{
-				key:           node.key,
-				subtreeHeight: 1,
-				size:          2,
-				nodeKey:       nil,
-				leftNode:      NewNode(key, value),
-				rightNode:     node,
-			}, false, nil
-		case 1: // setKey > leafKey
-			return &Node{
-				key:           key,
-				subtreeHeight: 1,
-				size:          2,
-				nodeKey:       nil,
-				leftNode:      node,
-				rightNode:     NewNode(key, value),
-			}, false, nil
-		default:
-			return NewNode(key, value), true, nil
-		}
-	} else {
-		node.reset()
-
-		if bytes.Compare(key, node.key) < 0 {
-			node.leftNode, updated, err = tree.recursiveSet(node.leftNode, key, value)
-			if err != nil {
-				return nil, updated, err
-			}
-		} else {
-			node.rightNode, updated, err = tree.recursiveSet(node.rightNode, key, value)
-			if err != nil {
-				return nil, updated, err
-			}
-		}
-
-		if updated {
-			return node, updated, nil
-		}
-		err = node.calcHeightAndSize(tree)
-		if err != nil {
-			return nil, false, err
-		}
-		newNode, err := tree.balance(node)
-		if err != nil {
-			return nil, false, err
-		}
-		return newNode, updated, err
-	}
-}
-
 // Remove removes a key from the working tree. The given key byte slice should not be modified
 // after this call, since it may point to data stored inside IAVL.
 func (tree *MutableTree) Remove(key []byte) ([]byte, bool, error) {
@@ -203,6 +134,14 @@ func (tree *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 
 	tree.root = newRoot
 	return value, true, nil
+}
+
+func (tree *MutableTree) Size() int64 {
+	return tree.root.size
+}
+
+func (tree *MutableTree) Height() int8 {
+	return tree.root.subtreeHeight
 }
 
 // removes the node corresponding to the passed key and balances the tree.
@@ -285,10 +224,72 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 	return node, nil, value, removed, nil
 }
 
-func (tree *MutableTree) Size() int64 {
-	return tree.root.size
+func (tree *MutableTree) set(key []byte, value []byte) (updated bool, err error) {
+	if value == nil {
+		return updated, fmt.Errorf("attempt to store nil value at key '%s'", key)
+	}
+
+	if tree.root == nil {
+		tree.root = NewNode(key, value)
+		return updated, nil
+	}
+
+	tree.root, updated, err = tree.recursiveSet(tree.root, key, value)
+	return updated, err
 }
 
-func (tree *MutableTree) Height() int8 {
-	return tree.root.subtreeHeight
+func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
+	newSelf *Node, updated bool, err error,
+) {
+	if node.isLeaf() {
+		switch bytes.Compare(key, node.key) {
+		case -1: // setKey < leafKey
+			return &Node{
+				key:           node.key,
+				subtreeHeight: 1,
+				size:          2,
+				nodeKey:       nil,
+				leftNode:      NewNode(key, value),
+				rightNode:     node,
+			}, false, nil
+		case 1: // setKey > leafKey
+			return &Node{
+				key:           key,
+				subtreeHeight: 1,
+				size:          2,
+				nodeKey:       nil,
+				leftNode:      node,
+				rightNode:     NewNode(key, value),
+			}, false, nil
+		default:
+			return NewNode(key, value), true, nil
+		}
+	} else {
+		node.reset()
+
+		if bytes.Compare(key, node.key) < 0 {
+			node.leftNode, updated, err = tree.recursiveSet(node.leftNode, key, value)
+			if err != nil {
+				return nil, updated, err
+			}
+		} else {
+			node.rightNode, updated, err = tree.recursiveSet(node.rightNode, key, value)
+			if err != nil {
+				return nil, updated, err
+			}
+		}
+
+		if updated {
+			return node, updated, nil
+		}
+		err = node.calcHeightAndSize(tree)
+		if err != nil {
+			return nil, false, err
+		}
+		newNode, err := tree.balance(node)
+		if err != nil {
+			return nil, false, err
+		}
+		return newNode, updated, err
+	}
 }

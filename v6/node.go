@@ -58,6 +58,8 @@ type Node struct {
 	leftNode      *Node
 	rightNode     *Node
 	subtreeHeight int8
+
+	frameId int
 }
 
 // String returns a string representation of the node key.

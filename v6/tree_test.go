@@ -7,6 +7,8 @@ import (
 )
 
 func TestTree_Build(t *testing.T) {
-	opts := testutil.NewTreeBuildOptions(&MutableTree{}).With10_000()
+	opts := testutil.NewTreeBuildOptions(&MutableTree{
+		pool: newNodePool(),
+	}).With10_000()
 	testutil.TestTreeBuild(t, opts)
 }

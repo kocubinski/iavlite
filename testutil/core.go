@@ -16,6 +16,7 @@ type TreeBuildOptions struct {
 	Until     int64
 	UntilHash string
 	Iterator  bench.ChangesetIterator
+	Report    func()
 }
 
 func (opts TreeBuildOptions) With10_000() TreeBuildOptions {
@@ -25,17 +26,17 @@ func (opts TreeBuildOptions) With10_000() TreeBuildOptions {
 	return *o
 }
 
-func (opts TreeBuildOptions) With20_000() TreeBuildOptions {
+func (opts TreeBuildOptions) With25_000() TreeBuildOptions {
 	o := &opts
-	o.Until = 20_000
-	o.UntilHash = "be50f7b2bdb5362f76f47a215bb4b8cc4a387bbc2478e75dcc68255e8690ac92"
+	o.Until = 25_000
+	o.UntilHash = "a41235be12a8eedd007740ffc29fc55a5a169d693b1b3171982fe9c9034d55d6"
 	return *o
 }
 
 func (opts TreeBuildOptions) With100_000() TreeBuildOptions {
 	o := &opts
 	o.Until = 100_000
-	o.UntilHash = "be50f7b2bdb5362f76f47a215bb4b8cc4a387bbc2478e75dcc68255e8690ac92"
+	o.UntilHash = "e57ab75990453235859416baaccedbaac7b721cd099709ee968321c7822766b1"
 	return *o
 }
 
@@ -67,7 +68,7 @@ func NewTreeBuildOptions(tree Tree) TreeBuildOptions {
 		Tree:     tree,
 		Iterator: itr,
 	}
-	return opts.With20_000()
+	return opts.With25_000()
 }
 
 type Tree interface {
@@ -126,6 +127,9 @@ func TestTreeBuild(t *testing.T, opts TreeBuildOptions) {
 	fmt.Printf("final version: %d, hash: %x\n", version, hash)
 	fmt.Printf("height: %d, size: %d\n", tree.Height(), tree.Size())
 	fmt.Printf("mean leaves/ms %s\n", humanize.Comma(cnt/time.Since(itrStart).Milliseconds()))
+	if opts.Report != nil {
+		opts.Report()
+	}
 	require.Equal(t, opts.UntilHash, fmt.Sprintf("%x", hash))
 	require.Equal(t, version, opts.Until)
 }

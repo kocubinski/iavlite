@@ -3,12 +3,18 @@ package v6
 import (
 	"testing"
 
+	"github.com/kocubinski/iavlite/core"
 	"github.com/kocubinski/iavlite/testutil"
 )
 
 func TestTree_Build(t *testing.T) {
-	opts := testutil.NewTreeBuildOptions(&MutableTree{
-		pool: newNodePool(),
-	}).With10_000()
+	tree := &MutableTree{
+		pool:    newNodePool(),
+		metrics: &core.TreeMetrics{},
+	}
+	opts := testutil.NewTreeBuildOptions(tree)
+	opts.Report = func() {
+		tree.metrics.Report()
+	}
 	testutil.TestTreeBuild(t, opts)
 }

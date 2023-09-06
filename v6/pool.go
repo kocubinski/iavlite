@@ -1,10 +1,13 @@
 package v6
 
+import "github.com/kocubinski/iavlite/core"
+
 const poolSize = 3_000_000
 
 type nodePool struct {
-	free  chan int
-	nodes [poolSize]*Node
+	free    chan int
+	nodes   [poolSize]*Node
+	metrics *core.TreeMetrics
 }
 
 func newNodePool() *nodePool {
@@ -26,11 +29,13 @@ func (np *nodePool) Get() *Node {
 	id := <-np.free
 	n := np.nodes[id]
 	n.frameId = id
+	np.metrics.PoolGets++
 	return n
 }
 
 func (np *nodePool) Return(n *Node) {
 	np.free <- n.frameId
+	np.metrics.PoolReturns++
 	n.clear()
 }
 

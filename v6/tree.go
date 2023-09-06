@@ -3,12 +3,15 @@ package v6
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/kocubinski/iavlite/core"
 )
 
 type MutableTree struct {
 	version int64
 	root    *Node
 	pool    *nodePool
+	metrics *core.TreeMetrics
 }
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
@@ -105,6 +108,11 @@ func (tree *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	if err != nil {
 		return false, err
 	}
+	if updated {
+		tree.metrics.TreeUpdate++
+	} else {
+		tree.metrics.TreeNewNode++
+	}
 	return updated, nil
 }
 
@@ -131,6 +139,8 @@ func (tree *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	if !removed {
 		return nil, false, nil
 	}
+
+	tree.metrics.TreeDelete++
 
 	tree.root = newRoot
 	return value, true, nil

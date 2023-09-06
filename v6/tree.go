@@ -163,6 +163,7 @@ func (tree *MutableTree) Height() int8 {
 func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node, newKey []byte, newValue []byte, removed bool, err error) {
 	if node.isLeaf() {
 		if bytes.Equal(key, node.key) {
+			tree.pool.Return(node)
 			return nil, nil, node.value, true, nil
 		}
 		return node, nil, nil, false, nil
@@ -254,25 +255,34 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 	if node.isLeaf() {
 		switch bytes.Compare(key, node.key) {
 		case -1: // setKey < leafKey
-			return &Node{
-				key:           node.key,
-				subtreeHeight: 1,
-				size:          2,
-				nodeKey:       nil,
-				leftNode:      NewNode(key, value),
-				rightNode:     node,
-			}, false, nil
+			n := tree.pool.Get()
+			n.key = node.key
+			n.subtreeHeight = 1
+			n.size = 2
+			n.leftNode = tree.pool.Get()
+			n.rightNode = node
+
+			n.leftNode.key = key
+			n.leftNode.value = value
+			n.leftNode.size = 1
+			return n, false, nil
 		case 1: // setKey > leafKey
-			return &Node{
-				key:           key,
-				subtreeHeight: 1,
-				size:          2,
-				nodeKey:       nil,
-				leftNode:      node,
-				rightNode:     NewNode(key, value),
-			}, false, nil
+			n := tree.pool.Get()
+			n.key = key
+			n.subtreeHeight = 1
+			n.size = 2
+			n.leftNode = node
+			n.rightNode = tree.pool.Get()
+
+			n.rightNode.key = key
+			n.rightNode.value = value
+			n.rightNode.size = 1
+			return n, false, nil
 		default:
-			return NewNode(key, value), true, nil
+			node.hash = nil
+			node.nodeKey = nil
+			node.value = value
+			return node, true, nil
 		}
 	} else {
 		node.reset()

@@ -163,6 +163,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 			leftNode := tree.pool.Get()
 			leftNode.key = key
 			leftNode.value = value
+			leftNode.size = 1
 
 			n := tree.pool.Get()
 			n.key = node.key
@@ -175,6 +176,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 			rightNode := tree.pool.Get()
 			rightNode.key = key
 			rightNode.value = value
+			rightNode.size = 1
 
 			n := tree.pool.Get()
 			n.key = node.key

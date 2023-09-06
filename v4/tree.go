@@ -145,6 +145,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 	if node.isLeaf() {
 		switch bytes.Compare(key, node.key) {
 		case -1: // setKey < leafKey
+			tree.metrics.PoolGets += 2
 			return &Node{
 				key:           node.key,
 				subtreeHeight: 1,
@@ -154,6 +155,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 				rightNode:     node,
 			}, false, nil
 		case 1: // setKey > leafKey
+			tree.metrics.PoolGets += 2
 			return &Node{
 				key:           key,
 				subtreeHeight: 1,

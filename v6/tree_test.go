@@ -12,6 +12,8 @@ func TestTree_Build(t *testing.T) {
 		pool:    newNodePool(),
 		metrics: &core.TreeMetrics{},
 	}
+	tree.pool.metrics = tree.metrics
+
 	opts := testutil.NewTreeBuildOptions(tree)
 	opts.Report = func() {
 		tree.metrics.Report()

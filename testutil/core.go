@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 	"time"
@@ -20,6 +21,13 @@ type TreeBuildOptions struct {
 func (opts TreeBuildOptions) With20_000() TreeBuildOptions {
 	o := &opts
 	o.Until = 20_000
+	o.UntilHash = "be50f7b2bdb5362f76f47a215bb4b8cc4a387bbc2478e75dcc68255e8690ac92"
+	return *o
+}
+
+func (opts TreeBuildOptions) With100_000() TreeBuildOptions {
+	o := &opts
+	o.Until = 100_000
 	o.UntilHash = "be50f7b2bdb5362f76f47a215bb4b8cc4a387bbc2478e75dcc68255e8690ac92"
 	return *o
 }
@@ -79,11 +87,16 @@ func TestTreeBuild(t *testing.T, opts TreeBuildOptions) {
 	for ; itr.Valid(); err = itr.Next() {
 		require.NoError(t, err)
 		for _, node := range itr.GetChangeset().Nodes {
+			var keyBz bytes.Buffer
+			keyBz.Write([]byte(node.StoreKey))
+			keyBz.Write(node.Key)
+			key := keyBz.Bytes()
+
 			if !node.Delete {
-				_, err = tree.Set(node.Key, node.Value)
+				_, err = tree.Set(key, node.Value)
 				require.NoError(t, err)
 			} else {
-				_, _, err := tree.Remove(node.Key)
+				_, _, err := tree.Remove(key)
 				require.NoError(t, err)
 			}
 

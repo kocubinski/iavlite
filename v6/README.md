@@ -27,9 +27,16 @@ tasks must be performed: 1) fetch the node from the cache by reference, 2) compa
 equal set the `use` bit, or 3b) if unequal (page fault) fetch the node from disk then evict and replace a 
 node in cache.
 
-Periodic snapshot cleanup (collapsing and deleting unreferenced tree nodes) can be performed by a 
-background process using the IAVL tree diff algorithm introduced in [iavl#646](https://github.com/cosmos/iavl/pull/646) 
-to identify and delete orphans. 
+### Reference counting and orphan cleanup
+
+Periodic snapshot cleanup (collapsing and deleting unreferenced tree nodes) is required to prevent 
+exploding database size. This can be performed by a background process using the IAVL tree diff algorithm 
+introduced in [iavl#646](https://github.com/cosmos/iavl/pull/646) to identify and delete orphans 
+(unreferenced nodes).
+
+Another strategy is to accumulate a list of orphaned nodes during tree operations where `orphan.version < 
+lastCheckpointVersion`.  This list is then used to delete orphans from disk during the next checkpoint.  The 
+overhead of both approaches should be measured.
 
 ## State Storage
 

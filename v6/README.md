@@ -16,13 +16,13 @@ The cache maintains working sets, `hot` and `cold`. `hot` accumulates working no
 mutated in the IAVL tree. Once the page cache reaches a memory threshold *or* a certain amount of time 
 (blocks) has elapsed since the last flush, the checkpoint process starts and `hot` is flushed to disk. 
 This involves swapping `hot` and `cold`, enumerating the nodes in the set, writing to disk and clearing 
-the `dirty` bit.  `cold` is quickly emptied will `hot` slowly fills up.  This double buffer strategy 
+the `dirty` bit.  `cold` is quickly emptied while `hot` slowly fills up.  This double buffer strategy 
 prevents the need to lock the page cache or pause the IAVL tree while checkpointing.
 
 Instead of IAVL traversal fetching nodes from a slice or other external data structure as a buffer pool,
 the pointers `node.leftNode` and `node.rightNode` just fetch directly from the managed memory.  A node pool
 is maintained as a slice of pre-allocated `Node` structs.  This is effectively the page cache and has the 
-additional benefit of relieving GC thrashing. Therefore, when fetching left or right nodes the following 
+additional benefit of relieving GC pressure. Therefore, when fetching left or right nodes the following 
 tasks must be performed: 1) fetch the node from the cache by reference, 2) compare node keys, then 3a) if 
 equal set the `use` bit, or 3b) if unequal (page fault) fetch the node from disk then evict and replace a 
 node in cache.

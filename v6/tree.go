@@ -250,7 +250,6 @@ func (tree *MutableTree) deepHash(sequence uint32, node *Node) *nodeKey {
 	sequence++
 	node.nodeKey = newNodeKey(tree.version, sequence)
 	if node.subtreeHeight > 0 {
-		// wrong, should be nodekey assignment, but just profiling for now.
 		node.leftNodeKey = tree.deepHash(sequence, node.leftNode)
 		node.rightNodeKey = tree.deepHash(sequence, node.rightNode)
 	}

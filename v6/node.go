@@ -13,13 +13,11 @@ const nodeKeySize = 12
 
 type nodeKey [nodeKeySize]byte
 
-var emptyNodeKey = nodeKey{}
-
 func newNodeKey(version int64, sequence uint32) *nodeKey {
-	nk := new(nodeKey)
+	nk := nodeKey{}
 	binary.BigEndian.PutUint64(nk[:], uint64(version))
 	binary.BigEndian.PutUint32(nk[8:], sequence)
-	return nk
+	return &nk
 }
 
 func (nk *nodeKey) Version() int64 {

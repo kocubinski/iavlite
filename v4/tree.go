@@ -225,6 +225,7 @@ func (tree *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 // - the removed value
 func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node, newKey []byte, newValue []byte, removed bool, err error) {
 	if node.isLeaf() {
+		tree.metrics.PoolReturns++
 		if bytes.Equal(key, node.key) {
 			return nil, nil, node.value, true, nil
 		}

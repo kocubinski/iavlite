@@ -22,7 +22,13 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	//	tree.version--
 	//	return nil, 0, err
 	//}
-	tree.deepHash(0, tree.root)
+	var sequence uint32
+	tree.deepHash(&sequence, tree.root)
+
+	for _, orphan := range tree.orphans {
+		tree.db.Delete(*orphan)
+	}
+	tree.orphans = nil
 
 	return tree.root.hash, tree.version, nil
 }
@@ -115,8 +121,13 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 
 		tree.addOrphan(node)
 
-		if newLeftNode == nil { // left node held value, was removed
-			return node.rightNode, node.key, value, removed, nil
+		// left node held value, was removed
+		// collapse `node.rightNode` into `node`
+		if newLeftNode == nil {
+			right := node.rightNode
+			k := node.key
+			tree.pool.Return(node)
+			return right, k, value, removed, nil
 		}
 
 		node.reset()
@@ -145,8 +156,12 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 
 	tree.addOrphan(node)
 
-	if newRightNode == nil { // right node held value, was removed
-		return node.leftNode, nil, value, removed, nil
+	// right node held value, was removed
+	// collapse `node.leftNode` into `node`
+	if newRightNode == nil {
+		left := node.leftNode
+		tree.pool.Return(node)
+		return left, nil, value, removed, nil
 	}
 
 	node.reset()
@@ -252,22 +267,26 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 	}
 }
 
-func (tree *MutableTree) deepHash(sequence uint32, node *Node) *nodeKey {
+func (tree *MutableTree) deepHash(sequence *uint32, node *Node) *nodeKey {
+	if node == nil {
+		panic("nil node in deepHash")
+	}
 	if node.hash != nil {
 		return node.nodeKey
 	}
-	sequence++
-	node.nodeKey = newNodeKey(tree.version, sequence)
+	*sequence++
+	node.nodeKey = newNodeKey(tree.version, *sequence)
 	if node.subtreeHeight > 0 {
 		node.leftNodeKey = tree.deepHash(sequence, node.leftNode)
 		node.rightNodeKey = tree.deepHash(sequence, node.rightNode)
 	}
 	node._hash(tree.version)
+	tree.db.Set(node)
 	return node.nodeKey
 }
 
 func (tree *MutableTree) addOrphan(n *Node) {
-	if n.nodeKey == nil {
+	if n.nodeKey != nil {
 		tree.orphans = append(tree.orphans, n.nodeKey)
 	}
 }

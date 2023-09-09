@@ -9,7 +9,7 @@ import (
 
 func TestTree_Build(t *testing.T) {
 	tree := &MutableTree{
-		pool:    newNodePool(),
+		pool:    newNodePool(3_000_000),
 		metrics: &core.TreeMetrics{},
 	}
 	tree.pool.metrics = tree.metrics

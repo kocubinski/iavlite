@@ -215,6 +215,7 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, error) {
 	newNode := node.leftNode
 	newNode.reset()
 
+	tree.addOrphan(node.leftNode)
 	node.leftNode = newNode.rightNode
 	newNode.rightNode = node
 
@@ -239,6 +240,7 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, error) {
 	newNode := node.rightNode
 	newNode.reset()
 
+	tree.addOrphan(node.rightNode)
 	node.rightNode = newNode.leftNode
 	newNode.leftNode = node
 

@@ -12,6 +12,8 @@ type MutableTree struct {
 	root    *Node
 	pool    *nodePool
 	metrics *core.TreeMetrics
+	db      *memDB
+	orphans []*nodeKey
 }
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
@@ -89,6 +91,7 @@ func (tree *MutableTree) Height() int8 {
 func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node, newKey []byte, newValue []byte, removed bool, err error) {
 	if node.isLeaf() {
 		if bytes.Equal(key, node.key) {
+			tree.addOrphan(node)
 			tree.pool.Return(node)
 			return nil, nil, node.value, true, nil
 		}
@@ -109,6 +112,8 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 		if !removed {
 			return node, nil, value, removed, nil
 		}
+
+		tree.addOrphan(node)
 
 		if newLeftNode == nil { // left node held value, was removed
 			return node.rightNode, node.key, value, removed, nil
@@ -137,6 +142,8 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 	if !removed {
 		return node, nil, value, removed, nil
 	}
+
+	tree.addOrphan(node)
 
 	if newRightNode == nil { // right node held value, was removed
 		return node.leftNode, nil, value, removed, nil
@@ -167,7 +174,7 @@ func (tree *MutableTree) set(key []byte, value []byte) (updated bool, err error)
 	}
 
 	if tree.root == nil {
-		tree.root = tree.pool.Get()
+		tree.root = tree.pool.HotGet()
 		tree.root.key = key
 		tree.root.value = value
 		tree.root.size = 1
@@ -184,11 +191,11 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 	if node.isLeaf() {
 		switch bytes.Compare(key, node.key) {
 		case -1: // setKey < leafKey
-			n := tree.pool.Get()
+			n := tree.pool.HotGet()
 			n.key = node.key
 			n.subtreeHeight = 1
 			n.size = 2
-			n.leftNode = tree.pool.Get()
+			n.leftNode = tree.pool.HotGet()
 			n.rightNode = node
 
 			n.leftNode.key = key
@@ -196,24 +203,26 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 			n.leftNode.size = 1
 			return n, false, nil
 		case 1: // setKey > leafKey
-			n := tree.pool.Get()
+			n := tree.pool.HotGet()
 			n.key = key
 			n.subtreeHeight = 1
 			n.size = 2
 			n.leftNode = node
-			n.rightNode = tree.pool.Get()
+			n.rightNode = tree.pool.HotGet()
 
 			n.rightNode.key = key
 			n.rightNode.value = value
 			n.rightNode.size = 1
 			return n, false, nil
 		default:
+			tree.addOrphan(node)
 			node.hash = nil
 			node.nodeKey = nil
 			node.value = value
 			return node, true, nil
 		}
 	} else {
+		tree.addOrphan(node)
 		node.reset()
 
 		if bytes.Compare(key, node.key) < 0 {
@@ -255,4 +264,10 @@ func (tree *MutableTree) deepHash(sequence uint32, node *Node) *nodeKey {
 	}
 	node._hash(tree.version)
 	return node.nodeKey
+}
+
+func (tree *MutableTree) addOrphan(n *Node) {
+	if n.nodeKey == nil {
+		tree.orphans = append(tree.orphans, n.nodeKey)
+	}
 }

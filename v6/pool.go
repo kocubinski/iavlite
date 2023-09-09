@@ -2,34 +2,36 @@ package v6
 
 import "github.com/kocubinski/iavlite/core"
 
-const poolSize = 3_000_000
-
 type nodePool struct {
 	free    chan int
-	nodes   [poolSize]*Node
+	nodes   []*Node
 	metrics *core.TreeMetrics
+	hotSet  []*Node
+	coldSet []*Node
 }
 
-func newNodePool() *nodePool {
+func newNodePool(size int) *nodePool {
 	np := &nodePool{
-		nodes: [poolSize]*Node{},
-		free:  make(chan int, poolSize),
+		nodes: make([]*Node, size),
+		free:  make(chan int, size),
 	}
-	for i := 0; i < poolSize; i++ {
+	for i := 0; i < size; i++ {
 		np.free <- i
 		np.nodes[i] = &Node{}
 	}
 	return np
 }
 
-func (np *nodePool) Get() *Node {
+func (np *nodePool) HotGet() *Node {
 	if len(np.free) == 0 {
+		// TODO eviction
 		panic("pool exhausted")
 	}
 	id := <-np.free
 	n := np.nodes[id]
 	n.frameId = id
 	np.metrics.PoolGets++
+	np.hotSet = append(np.hotSet, n)
 	return n
 }
 

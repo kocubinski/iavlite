@@ -6,8 +6,8 @@ type nodePool struct {
 	free    chan int
 	nodes   []*Node
 	metrics *core.TreeMetrics
-	hotSet  []*Node
-	coldSet []*Node
+	//hotSet  []*Node
+	//coldSet []*Node
 }
 
 func newNodePool(size int) *nodePool {
@@ -31,7 +31,7 @@ func (np *nodePool) HotGet() *Node {
 	n := np.nodes[id]
 	n.frameId = id
 	np.metrics.PoolGets++
-	np.hotSet = append(np.hotSet, n)
+	//np.hotSet = append(np.hotSet, n)
 	return n
 }
 

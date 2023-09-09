@@ -27,8 +27,8 @@ func TestTree_Build(t *testing.T) {
 	count := treeCount(tree.root)
 
 	workingSetCount := 0
-	for _, hn := range tree.pool.hotSet {
-		if hn.nodeKey != nil {
+	for _, n := range tree.pool.nodes {
+		if n.nodeKey != nil {
 			workingSetCount++
 		}
 	}
@@ -40,7 +40,6 @@ func TestTree_Build(t *testing.T) {
 	require.Equal(t, height, tree.root.subtreeHeight+1)
 	require.Equal(t, count, len(tree.db.nodes))
 	require.Equal(t, count, len(tree.pool.nodes)-len(tree.pool.free))
-	require.Equal(t, count, len(tree.pool.hotSet))
 }
 
 func treeCount(node *Node) int {

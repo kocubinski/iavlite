@@ -124,7 +124,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 		// left node held value, was removed
 		// collapse `node.rightNode` into `node`
 		if newLeftNode == nil {
-			right := node.rightNode
+			right := node.right(tree)
 			k := node.key
 			tree.pool.Return(node)
 			return right, k, value, removed, nil
@@ -145,7 +145,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 		return node, newKey, value, removed, nil
 	}
 	// node.key >= key; either found or look to the right:
-	newRightNode, newKey, value, removed, err := tree.recursiveRemove(node.rightNode, key)
+	newRightNode, newKey, value, removed, err := tree.recursiveRemove(node.right(tree), key)
 	if err != nil {
 		return nil, nil, nil, false, err
 	}
@@ -242,13 +242,13 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 
 		var newChild *Node
 		if bytes.Compare(key, node.key) < 0 {
-			newChild, updated, err = tree.recursiveSet(node.leftNode, key, value)
+			newChild, updated, err = tree.recursiveSet(node.left(tree), key, value)
 			if err != nil {
 				return nil, updated, err
 			}
 			node.setLeft(newChild)
 		} else {
-			newChild, updated, err = tree.recursiveSet(node.rightNode, key, value)
+			newChild, updated, err = tree.recursiveSet(node.right(tree), key, value)
 			if err != nil {
 				return nil, updated, err
 			}

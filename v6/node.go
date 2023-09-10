@@ -238,7 +238,7 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, error) {
 	newNode := node.left(tree)
 	newNode.reset()
 
-	node.setLeft(newNode.rightNode)
+	node.setLeft(newNode.right(tree))
 	newNode.rightNode = node
 
 	err = node.calcHeightAndSize(tree)
@@ -261,8 +261,8 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, error) {
 	tree.addOrphan(node)
 	node.reset()
 
-	tree.addOrphan(node.rightNode)
-	newNode := node.rightNode
+	tree.addOrphan(node.right(tree))
+	newNode := node.right(tree)
 	newNode.reset()
 
 	node.rightNode = newNode.left(tree)
@@ -345,6 +345,7 @@ func (node *Node) writeHashBytes(w io.Writer, version int64) error {
 
 	return nil
 }
+
 func (node *Node) writeHashBytes2(tree *MutableTree, w io.Writer, version int64) error {
 	var (
 		n   int

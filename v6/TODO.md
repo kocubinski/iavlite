@@ -3,7 +3,9 @@
 special handling for node with dirty bit? since they will never be evicted perhaps don't need to check 
 for a fault?
  
-when the cache is full, what to do?
+### cache full
+Question: when the cache is full, how do we proceed? large working sets are a problem.
+
 the working set, `dirty = true`, should perhaps be unbounded with a soft ceiling defined by count or bytes.
 when the ceiling is reached we always flush the working set to disk and set `dirty = false` on the next 
 `Commit`.   using one slice for the entire cache we would need to (1) grow the cache, (2) empty out the 
@@ -26,11 +28,14 @@ since this is the case option (3) makes more sense.
 question: when we shrink the cache how do we choose which nodes to evict? run the CLOCK? perhaps shrinking 
 should be very infrequent, but supported. so should growing.  
 
-a final option is to spill the working set to disk when the soft ceiling is reached.  this means that 
+a final option (4) is to spill the working set to disk when the soft ceiling is reached.  this means that 
 `nodeKey` must be generated up front (not in `SaveVersion`) so that there is a key to save the node under. 
 to save IO `SaveVersion` must be able to handle nodes which are already persisted, and `addOrphan` must be 
 able to handle nodes which are already persisted.  this means decoupling the node pool flush cadence from 
-the tree version cadence completely.  this is probably the best option.
+the tree version cadence completely.  
+(4) does not seem viable unless we create a separate volatile storage area for the working set. none 
+of the nodes persisted here contain proper hashes, so they cannot be used in the tree.  the entire set is 
+removed on `Commit()`, and nodes are potentially loaded during `SaveVersion()`.
 
 ### clean up
 

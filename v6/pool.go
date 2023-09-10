@@ -1,8 +1,12 @@
 package v6
 
 import (
+	"math"
+
 	"github.com/kocubinski/iavlite/core"
 )
+
+var fakeNode = &Node{nodeKey: newNodeKey(math.MaxInt64, math.MaxUint32), value: []byte("fake")}
 
 type nodePool struct {
 	db        *memDB
@@ -11,6 +15,9 @@ type nodePool struct {
 	metrics   *core.TreeMetrics
 	evict     func(*nodePool) *Node
 	clockHand int
+
+	overflowed bool
+	dirtyCount int
 }
 
 func (np *nodePool) clockEvict() *Node {
@@ -37,7 +44,7 @@ func (np *nodePool) clockEvict() *Node {
 			// never evict dirty nodes
 			np.metrics.PoolEvictMiss++
 			// TODO async write and atomic bool
-			np.db.Set(n)
+			//np.db.Set(n)
 			continue
 		default:
 			np.metrics.PoolEvict++
@@ -61,6 +68,16 @@ func newNodePool(db *memDB, size int) *nodePool {
 }
 
 func (np *nodePool) Get() *Node {
+	np.metrics.PoolGet++
+
+	if np.dirtyCount > len(np.nodes)/2 {
+		np.overflowed = true
+		np.metrics.PoolDirtyOverflow++
+		// allocate a new node. it will be discarded on next flush
+		n := &Node{overflow: true}
+		return n
+	}
+
 	var n *Node
 	if len(np.free) == 0 {
 		n = np.clockEvict()
@@ -70,16 +87,20 @@ func (np *nodePool) Get() *Node {
 		n.frameId = id
 	}
 	n.use = true
-	n.dirty = true
+	np.dirtyNode(n)
 
-	np.metrics.PoolGet++
 	return n
 }
 
 func (np *nodePool) Return(n *Node) {
+	if n.overflow {
+		// overflow nodes are not managed
+		return
+	}
 	np.free <- n.frameId
 	np.metrics.PoolReturn++
 	n.clear()
+	np.cleanNode(n)
 }
 
 func (np *nodePool) Put(n *Node) {
@@ -100,6 +121,34 @@ func (np *nodePool) Put(n *Node) {
 	n.use = true
 }
 
+func (np *nodePool) FlushNode(n *Node) {
+	switch {
+	case n.dirty:
+		np.db.Set(n)
+		np.cleanNode(n)
+	case n.overflow:
+		np.db.Set(n)
+	default:
+		panic("strange, flushing a clean node")
+	}
+}
+
+func (np *nodePool) cleanNode(n *Node) {
+	if !n.dirty {
+		return
+	}
+	n.dirty = false
+	np.dirtyCount--
+}
+
+func (np *nodePool) dirtyNode(n *Node) {
+	if n.dirty {
+		return
+	}
+	n.dirty = true
+	np.dirtyCount++
+}
+
 func (node *Node) clear() {
 	node.key = nil
 	node.value = nil
@@ -113,5 +162,4 @@ func (node *Node) clear() {
 	node.size = 0
 	node.frameId = 0
 	node.use = false
-	node.dirty = false
 }

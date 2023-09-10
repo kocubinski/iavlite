@@ -41,21 +41,15 @@ type Node struct {
 	rightNode     *Node
 	subtreeHeight int8
 
-	frameId int
-	use     bool
-	dirty   bool
-	working bool
+	frameId  int
+	use      bool
+	dirty    bool
+	overflow bool
 }
 
 // String returns a string representation of the node key.
 func (nk *nodeKey) String() string {
 	return fmt.Sprintf("(%d, %d)", nk.Version(), nk.Sequence())
-}
-
-func (node *Node) reset() {
-	node.mustChildren(nil)
-	node.hash = nil
-	node.nodeKey = nil
 }
 
 // TODO remove?
@@ -77,13 +71,19 @@ func (node *Node) mustChildren(t *MutableTree) {
 
 // getLeftNode will never be called on leaf nodes. all tree nodes have 2 children.
 func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
-	if node.leftNode == nil {
-		return nil, fmt.Errorf("left node is nil")
+	if node.isLeaf() {
+		return nil, fmt.Errorf("leaf node has no left node")
 	}
-	if node.leftNodeKey != node.leftNode.nodeKey {
+	//if node.leftNode == nil {
+	//	return nil, fmt.Errorf("left node is nil")
+	//}
+	if node.leftNode == nil || node.leftNodeKey != node.leftNode.nodeKey {
 		// return nil, fmt.Errorf("left node key mismatch; expected %v, got %v",
 		//	node.leftNodeKey, node.leftNode.nodeKey)
 		node.leftNode = t.db.Get(*node.leftNodeKey)
+		if node.leftNode == nil {
+			return nil, fmt.Errorf("left node is nil; fetch failed")
+		}
 		t.pool.Put(node.leftNode)
 	}
 	node.leftNode.use = true
@@ -104,13 +104,19 @@ func (node *Node) setLeft(leftNode *Node) {
 }
 
 func (node *Node) getRightNode(t *MutableTree) (*Node, error) {
-	if node.rightNode == nil {
-		return nil, fmt.Errorf("right node is nil")
+	if node.isLeaf() {
+		return nil, fmt.Errorf("leaf node has no right node")
 	}
-	if node.rightNodeKey != node.rightNode.nodeKey {
+	if node.rightNode == nil || node.rightNodeKey != node.rightNode.nodeKey {
 		// return nil, fmt.Errorf("right node key mismatch; expected %v, got %v",
 		//	node.rightNodeKey, node.rightNode.nodeKey)
+		if node.rightNodeKey == nil {
+			return nil, fmt.Errorf("right node key is nil")
+		}
 		node.rightNode = t.db.Get(*node.rightNodeKey)
+		if node.rightNode == nil {
+			return nil, fmt.Errorf("right node is nil; fetch failed")
+		}
 		t.pool.Put(node.rightNode)
 	}
 	node.rightNode.use = true
@@ -247,11 +253,11 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, error) {
 	var err error
 	// TODO: optimize balance & rotate.
 	tree.addOrphan(node)
-	node.reset()
+	tree.mutateNode(node)
 
 	tree.addOrphan(node.left(tree))
 	newNode := node.left(tree)
-	newNode.reset()
+	tree.mutateNode(newNode)
 
 	node.setLeft(newNode.right(tree))
 	newNode.setRight(node)
@@ -274,11 +280,11 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, error) {
 	var err error
 	// TODO: optimize balance & rotate.
 	tree.addOrphan(node)
-	node.reset()
+	tree.mutateNode(node)
 
 	tree.addOrphan(node.right(tree))
 	newNode := node.right(tree)
-	newNode.reset()
+	tree.mutateNode(newNode)
 
 	node.setRight(newNode.left(tree))
 	newNode.setLeft(node)

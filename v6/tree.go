@@ -18,17 +18,18 @@ type MutableTree struct {
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	tree.version++
-	// if err := tree.saveNewNodes(); err != nil {
-	//	tree.version--
-	//	return nil, 0, err
-	//}
 	var sequence uint32
 	tree.deepHash(&sequence, tree.root)
+	// deepHash flushes to disk and clears overflowed nodes for GC
+	tree.pool.overflowed = false
 
 	for _, orphan := range tree.orphans {
 		tree.db.Delete(*orphan)
 	}
 	tree.orphans = nil
+
+	//tree.root.leftNode = nil
+	//tree.root.rightNode = nil
 
 	return tree.root.hash, tree.version, nil
 }
@@ -130,7 +131,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 			return right, k, value, removed, nil
 		}
 
-		node.reset()
+		tree.mutateNode(node)
 
 		node.setLeft(newLeftNode)
 		err = node.calcHeightAndSize(tree)
@@ -164,7 +165,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 		return left, nil, value, removed, nil
 	}
 
-	node.reset()
+	tree.mutateNode(node)
 
 	node.setRight(newRightNode)
 	if newKey != nil {
@@ -234,11 +235,12 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 			node.hash = nil
 			node.nodeKey = nil
 			node.value = value
+			tree.pool.dirtyNode(node)
 			return node, true, nil
 		}
 	} else {
 		tree.addOrphan(node)
-		node.reset()
+		tree.mutateNode(node)
 
 		var newChild *Node
 		if bytes.Compare(key, node.key) < 0 {
@@ -274,23 +276,55 @@ func (tree *MutableTree) deepHash(sequence *uint32, node *Node) *nodeKey {
 	if node == nil {
 		panic("nil node in deepHash")
 	}
-	if node.hash != nil {
+	if node.nodeKey != nil {
 		return node.nodeKey
 	}
 	*sequence++
 	node.nodeKey = newNodeKey(tree.version, *sequence)
-	if node.subtreeHeight > 0 {
+	if !node.isLeaf() {
 		// permit field fetch here for now; all these nodes are definitely in the working set
-		node.leftNodeKey = tree.deepHash(sequence, node.leftNode)
-		node.rightNodeKey = tree.deepHash(sequence, node.rightNode)
+		var left, right *Node
+		if node.leftNode != nil {
+			left = node.leftNode
+		} else {
+			left = node.left(tree)
+		}
+		if node.rightNode != nil {
+			right = node.rightNode
+		} else {
+			right = node.right(tree)
+		}
+		node.leftNodeKey = tree.deepHash(sequence, left)
+		node.rightNodeKey = tree.deepHash(sequence, right)
 	}
 	node._hash(tree, tree.version)
-	tree.db.Set(node)
+	tree.pool.FlushNode(node)
+
+	if !node.isLeaf() {
+		// remove unmanaged overflow nodes by replacing with a fake node. will be garbage collected.
+		// leftNode and rightNode will fault and be replaced on next fetch.
+		if node.leftNode.overflow {
+			node.leftNode = nil
+		}
+		if node.rightNode.overflow {
+			node.rightNode = nil
+		}
+	}
+
 	return node.nodeKey
 }
 
 func (tree *MutableTree) addOrphan(n *Node) {
 	if n.nodeKey != nil {
+		if n.nodeKey.String() == "(770, 220)" {
+			fmt.Println("orphan (770, 220)")
+		}
 		tree.orphans = append(tree.orphans, n.nodeKey)
 	}
+}
+
+func (tree *MutableTree) mutateNode(node *Node) {
+	node.hash = nil
+	node.nodeKey = nil
+	tree.pool.dirtyNode(node)
 }

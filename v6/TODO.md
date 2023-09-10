@@ -37,6 +37,11 @@ the tree version cadence completely.
 of the nodes persisted here contain proper hashes, so they cannot be used in the tree.  the entire set is 
 removed on `Commit()`, and nodes are potentially loaded during `SaveVersion()`.
 
+perhaps overflow working set into temporary memory is the best solution.  these nodes will not make it 
+back into the primary cache, possibly resulting into some inefficient churn, but we can accept this 
+performance hit since hopefully the memory settings making working set overflow infrequent. a soft ceiling 
+to trigger flush should prevent overflow from occurring too often.
+
 ### clean up
 
 - migrate node to active record pattern with a pool handle so that .left(tree) -> .left()

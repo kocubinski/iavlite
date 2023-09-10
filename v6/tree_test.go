@@ -50,6 +50,7 @@ func TestTree_Build(t *testing.T) {
 	require.Equal(t, height, tree.root.subtreeHeight+1)
 	require.Equal(t, count, len(tree.db.nodes))
 	require.Equal(t, count, len(tree.pool.nodes)-len(tree.pool.free))
+	require.Equal(t, tree.pool.dirtyCount, workingSetCount)
 }
 
 func treeCount(node *Node) int {

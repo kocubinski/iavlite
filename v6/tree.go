@@ -189,7 +189,7 @@ func (tree *MutableTree) set(key []byte, value []byte) (updated bool, err error)
 	}
 
 	if tree.root == nil {
-		tree.root = tree.pool.HotGet()
+		tree.root = tree.pool.Get()
 		tree.root.key = key
 		tree.root.value = value
 		tree.root.size = 1
@@ -206,25 +206,25 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 	if node.isLeaf() {
 		switch bytes.Compare(key, node.key) {
 		case -1: // setKey < leafKey
-			n := tree.pool.HotGet()
+			n := tree.pool.Get()
 			n.key = node.key
 			n.subtreeHeight = 1
 			n.size = 2
 			n.setRight(node)
 
-			n.leftNode = tree.pool.HotGet()
+			n.leftNode = tree.pool.Get()
 			n.leftNode.key = key
 			n.leftNode.value = value
 			n.leftNode.size = 1
 			return n, false, nil
 		case 1: // setKey > leafKey
-			n := tree.pool.HotGet()
+			n := tree.pool.Get()
 			n.key = key
 			n.subtreeHeight = 1
 			n.size = 2
 			n.setLeft(node)
 
-			n.rightNode = tree.pool.HotGet()
+			n.rightNode = tree.pool.Get()
 			n.rightNode.key = key
 			n.rightNode.value = value
 			n.rightNode.size = 1

@@ -56,7 +56,7 @@ func newNodePool(size int) *nodePool {
 	return np
 }
 
-func (np *nodePool) HotGet() *Node {
+func (np *nodePool) Get() *Node {
 	var n *Node
 	if len(np.free) == 0 {
 		n = np.clockEvict()

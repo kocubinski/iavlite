@@ -166,7 +166,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 
 	node.reset()
 
-	node.rightNode = newRightNode
+	node.setRight(newRightNode)
 	if newKey != nil {
 		node.key = newKey
 	}

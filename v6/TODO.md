@@ -6,3 +6,7 @@
   for a fault?
 - too many changes. need to reset, rewind, and start over. map out incremental changes now that I have a 
   sense of what is needed.
+
+### clean up
+
+- migrate node to active record pattern with a pool handle so that .left(tree) -> .left()

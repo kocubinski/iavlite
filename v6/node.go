@@ -166,10 +166,11 @@ func (tree *MutableTree) balance(node *Node) (newSelf *Node, err error) {
 		}
 		// Left Right Case
 		node.leftNodeKey = nil
-		node.leftNode, err = tree.rotateLeft(node.left(tree))
+		newLeftNode, err := tree.rotateLeft(node.left(tree))
 		if err != nil {
 			return nil, err
 		}
+		node.setLeft(newLeftNode)
 
 		newNode, err := tree.rotateRight(node)
 		if err != nil {
@@ -237,7 +238,7 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, error) {
 	newNode := node.left(tree)
 	newNode.reset()
 
-	node.leftNode = newNode.rightNode
+	node.setLeft(newNode.rightNode)
 	newNode.rightNode = node
 
 	err = node.calcHeightAndSize(tree)
@@ -265,7 +266,7 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, error) {
 	newNode.reset()
 
 	node.rightNode = newNode.left(tree)
-	newNode.leftNode = node
+	newNode.setLeft(node)
 
 	err = node.calcHeightAndSize(tree)
 	if err != nil {

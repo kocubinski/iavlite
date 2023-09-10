@@ -132,7 +132,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 
 		node.reset()
 
-		node.leftNode = newLeftNode
+		node.setLeft(newLeftNode)
 		err = node.calcHeightAndSize(tree)
 		if err != nil {
 			return nil, nil, nil, false, err
@@ -210,7 +210,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 			n.key = node.key
 			n.subtreeHeight = 1
 			n.size = 2
-			n.rightNode = node
+			n.setRight(node)
 
 			n.leftNode = tree.pool.HotGet()
 			n.leftNode.key = key
@@ -222,9 +222,9 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 			n.key = key
 			n.subtreeHeight = 1
 			n.size = 2
-			n.leftNode = node
-			n.rightNode = tree.pool.HotGet()
+			n.setLeft(node)
 
+			n.rightNode = tree.pool.HotGet()
 			n.rightNode.key = key
 			n.rightNode.value = value
 			n.rightNode.size = 1
@@ -240,16 +240,19 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 		tree.addOrphan(node)
 		node.reset()
 
+		var newChild *Node
 		if bytes.Compare(key, node.key) < 0 {
-			node.leftNode, updated, err = tree.recursiveSet(node.leftNode, key, value)
+			newChild, updated, err = tree.recursiveSet(node.leftNode, key, value)
 			if err != nil {
 				return nil, updated, err
 			}
+			node.setLeft(newChild)
 		} else {
-			node.rightNode, updated, err = tree.recursiveSet(node.rightNode, key, value)
+			newChild, updated, err = tree.recursiveSet(node.rightNode, key, value)
 			if err != nil {
 				return nil, updated, err
 			}
+			node.setRight(newChild)
 		}
 
 		if updated {

@@ -110,7 +110,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 
 	// node.key < key; we go to the left to find the key:
 	if bytes.Compare(key, node.key) < 0 {
-		newLeftNode, newKey, value, removed, err := tree.recursiveRemove(node.leftNode, key)
+		newLeftNode, newKey, value, removed, err := tree.recursiveRemove(node.left(tree), key)
 		if err != nil {
 			return nil, nil, nil, false, err
 		}
@@ -159,7 +159,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node,
 	// right node held value, was removed
 	// collapse `node.leftNode` into `node`
 	if newRightNode == nil {
-		left := node.leftNode
+		left := node.left(tree)
 		tree.pool.Return(node)
 		return left, nil, value, removed, nil
 	}
@@ -210,9 +210,9 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 			n.key = node.key
 			n.subtreeHeight = 1
 			n.size = 2
-			n.leftNode = tree.pool.HotGet()
 			n.rightNode = node
 
+			n.leftNode = tree.pool.HotGet()
 			n.leftNode.key = key
 			n.leftNode.value = value
 			n.leftNode.size = 1
@@ -277,10 +277,11 @@ func (tree *MutableTree) deepHash(sequence *uint32, node *Node) *nodeKey {
 	*sequence++
 	node.nodeKey = newNodeKey(tree.version, *sequence)
 	if node.subtreeHeight > 0 {
+		// permit field fetch here for now; all these nodes are definitely in the working set
 		node.leftNodeKey = tree.deepHash(sequence, node.leftNode)
 		node.rightNodeKey = tree.deepHash(sequence, node.rightNode)
 	}
-	node._hash(tree.version)
+	node._hash(tree, tree.version)
 	tree.db.Set(node)
 	return node.nodeKey
 }

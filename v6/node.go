@@ -57,6 +57,7 @@ func (node *Node) reset() {
 	node.nodeKey = nil
 }
 
+// TODO remove?
 func (node *Node) mustChildren(t *MutableTree) {
 	var err error
 	if node.leftNode == nil {
@@ -150,7 +151,7 @@ func (tree *MutableTree) balance(node *Node) (newSelf *Node, err error) {
 	}
 
 	if balance > 1 {
-		lftBalance, err := node.leftNode.calcBalance(tree)
+		lftBalance, err := node.left(tree).calcBalance(tree)
 		if err != nil {
 			return nil, err
 		}
@@ -165,7 +166,7 @@ func (tree *MutableTree) balance(node *Node) (newSelf *Node, err error) {
 		}
 		// Left Right Case
 		node.leftNodeKey = nil
-		node.leftNode, err = tree.rotateLeft(node.leftNode)
+		node.leftNode, err = tree.rotateLeft(node.left(tree))
 		if err != nil {
 			return nil, err
 		}
@@ -232,8 +233,8 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, error) {
 	tree.addOrphan(node)
 	node.reset()
 
-	tree.addOrphan(node.leftNode)
-	newNode := node.leftNode
+	tree.addOrphan(node.left(tree))
+	newNode := node.left(tree)
 	newNode.reset()
 
 	node.leftNode = newNode.rightNode
@@ -263,7 +264,7 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, error) {
 	newNode := node.rightNode
 	newNode.reset()
 
-	node.rightNode = newNode.leftNode
+	node.rightNode = newNode.left(tree)
 	newNode.leftNode = node
 
 	err = node.calcHeightAndSize(tree)
@@ -281,13 +282,13 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, error) {
 
 // Computes the hash of the node without computing its descendants. Must be
 // called on nodes which have descendant node hashes already computed.
-func (node *Node) _hash(version int64) []byte {
+func (node *Node) _hash(tree *MutableTree, version int64) []byte {
 	if node.hash != nil {
 		return node.hash
 	}
 
 	h := sha256.New()
-	if err := node.writeHashBytes2(h, version); err != nil {
+	if err := node.writeHashBytes2(tree, h, version); err != nil {
 		return nil
 	}
 	node.hash = h.Sum(nil)
@@ -343,7 +344,7 @@ func (node *Node) writeHashBytes(w io.Writer, version int64) error {
 
 	return nil
 }
-func (node *Node) writeHashBytes2(w io.Writer, version int64) error {
+func (node *Node) writeHashBytes2(tree *MutableTree, w io.Writer, version int64) error {
 	var (
 		n   int
 		buf [binary.MaxVarintLen64]byte
@@ -377,10 +378,10 @@ func (node *Node) writeHashBytes2(w io.Writer, version int64) error {
 			return fmt.Errorf("writing value, %w", err)
 		}
 	} else {
-		if err := EncodeBytes(w, node.leftNode.hash); err != nil {
+		if err := EncodeBytes(w, node.left(tree).hash); err != nil {
 			return fmt.Errorf("writing left hash, %w", err)
 		}
-		if err := EncodeBytes(w, node.rightNode.hash); err != nil {
+		if err := EncodeBytes(w, node.right(tree).hash); err != nil {
 			return fmt.Errorf("writing right hash, %w", err)
 		}
 	}

@@ -79,6 +79,10 @@ func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
 	if node.leftNode == nil {
 		return nil, fmt.Errorf("left node is nil")
 	}
+	if node.leftNodeKey != node.leftNode.nodeKey {
+		return nil, fmt.Errorf("left node key mismatch; expected %v, got %v",
+			node.leftNodeKey, node.leftNode.nodeKey)
+	}
 	return node.leftNode, nil
 }
 
@@ -98,6 +102,10 @@ func (node *Node) setLeft(leftNode *Node) {
 func (node *Node) getRightNode(t *MutableTree) (*Node, error) {
 	if node.rightNode == nil {
 		return nil, fmt.Errorf("right node is nil")
+	}
+	if node.rightNodeKey != node.rightNode.nodeKey {
+		return nil, fmt.Errorf("right node key mismatch; expected %v, got %v",
+			node.rightNodeKey, node.rightNode.nodeKey)
 	}
 	return node.rightNode, nil
 }
@@ -165,7 +173,6 @@ func (tree *MutableTree) balance(node *Node) (newSelf *Node, err error) {
 			return newNode, nil
 		}
 		// Left Right Case
-		node.leftNodeKey = nil
 		newLeftNode, err := tree.rotateLeft(node.left(tree))
 		if err != nil {
 			return nil, err
@@ -198,7 +205,6 @@ func (tree *MutableTree) balance(node *Node) (newSelf *Node, err error) {
 			return newNode, nil
 		}
 		// Right Left Case
-		node.rightNodeKey = nil
 		newRightNode, err := tree.rotateRight(rightNode)
 		if err != nil {
 			return nil, err

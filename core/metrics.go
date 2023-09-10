@@ -7,8 +7,12 @@ import (
 )
 
 type TreeMetrics struct {
-	PoolGets    int64
-	PoolReturns int64
+	PoolGet       int64
+	PoolReturn    int64
+	PoolEvict     int64
+	PoolEvictMiss int64
+	PoolFault     int64
+
 	TreeUpdate  int64
 	TreeNewNode int64
 	TreeDelete  int64
@@ -16,8 +20,8 @@ type TreeMetrics struct {
 
 func (m *TreeMetrics) Report() {
 	fmt.Printf("Pool:\n gets: %s, returns: %s\nTree:\n update: %s, new node: %s, delete: %s\n",
-		humanize.Comma(m.PoolGets),
-		humanize.Comma(m.PoolReturns),
+		humanize.Comma(m.PoolGet),
+		humanize.Comma(m.PoolReturn),
 		humanize.Comma(m.TreeUpdate),
 		humanize.Comma(m.TreeNewNode),
 		humanize.Comma(m.TreeDelete))

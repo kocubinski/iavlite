@@ -29,13 +29,13 @@ func (np *nodePool) Get() *Node {
 	id := <-np.free
 	n := np.nodes[id]
 	n.frameId = id
-	np.metrics.PoolGets++
+	np.metrics.PoolGet++
 	return n
 }
 
 func (np *nodePool) Return(n *Node) {
 	np.free <- n.frameId
-	np.metrics.PoolReturns++
+	np.metrics.PoolReturn++
 	n.clear()
 }
 

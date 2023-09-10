@@ -42,6 +42,8 @@ type Node struct {
 	subtreeHeight int8
 
 	frameId int
+	use     bool
+	dirty   bool
 }
 
 // String returns a string representation of the node key.

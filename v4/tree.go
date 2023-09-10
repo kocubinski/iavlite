@@ -145,7 +145,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 	if node.isLeaf() {
 		switch bytes.Compare(key, node.key) {
 		case -1: // setKey < leafKey
-			tree.metrics.PoolGets += 2
+			tree.metrics.PoolGet += 2
 			return &Node{
 				key:           node.key,
 				subtreeHeight: 1,
@@ -155,7 +155,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte) (
 				rightNode:     node,
 			}, false, nil
 		case 1: // setKey > leafKey
-			tree.metrics.PoolGets += 2
+			tree.metrics.PoolGet += 2
 			return &Node{
 				key:           key,
 				subtreeHeight: 1,
@@ -225,7 +225,7 @@ func (tree *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 // - the removed value
 func (tree *MutableTree) recursiveRemove(node *Node, key []byte) (newSelf *Node, newKey []byte, newValue []byte, removed bool, err error) {
 	if node.isLeaf() {
-		tree.metrics.PoolReturns++
+		tree.metrics.PoolReturn++
 		if bytes.Equal(key, node.key) {
 			return nil, nil, node.value, true, nil
 		}

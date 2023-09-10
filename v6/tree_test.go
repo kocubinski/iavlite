@@ -9,6 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSanity(t *testing.T) {
+	nk1 := &nodeKey{1, 1}
+	nk2 := &nodeKey{1, 2}
+	nk1_1 := &nodeKey{1, 1}
+
+	require.Equal(t, nk1, nk1_1)
+	require.NotEqual(t, nk1, nk2)
+}
+
 func TestTree_Build(t *testing.T) {
 	tree := &MutableTree{
 		pool:    newNodePool(3_000_000),
@@ -28,7 +37,7 @@ func TestTree_Build(t *testing.T) {
 
 	workingSetCount := 0
 	for _, n := range tree.pool.nodes {
-		if n.nodeKey != nil {
+		if n.dirty {
 			workingSetCount++
 		}
 	}

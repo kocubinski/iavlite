@@ -73,28 +73,45 @@ func (node *Node) mustChildren(t *MutableTree) {
 	}
 }
 
+// getLeftNode will never be called on leaf nodes. all tree nodes have 2 children.
 func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
-	if node.leftNode != nil {
-		return node.leftNode, nil
+	if node.leftNode == nil {
+		return nil, fmt.Errorf("left node is nil")
 	}
-	return nil, fmt.Errorf("node not found")
-	//leftNode, err := t.ndb.GetNode(node.leftNodeKey)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return leftNode, nil
+	return node.leftNode, nil
+}
+
+func (node *Node) left(t *MutableTree) *Node {
+	leftNode, err := node.getLeftNode(nil)
+	if err != nil {
+		panic(err)
+	}
+	return leftNode
+}
+
+func (node *Node) setLeft(leftNode *Node) {
+	node.leftNodeKey = leftNode.nodeKey
+	node.leftNode = leftNode
 }
 
 func (node *Node) getRightNode(t *MutableTree) (*Node, error) {
-	if node.rightNode != nil {
-		return node.rightNode, nil
+	if node.rightNode == nil {
+		return nil, fmt.Errorf("right node is nil")
 	}
-	return nil, fmt.Errorf("node not found")
-	//rightNode, err := t.ndb.GetNode(node.rightNodeKey)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return rightNode, nil
+	return node.rightNode, nil
+}
+
+func (node *Node) right(t *MutableTree) *Node {
+	rightNode, err := node.getRightNode(nil)
+	if err != nil {
+		panic(err)
+	}
+	return rightNode
+}
+
+func (node *Node) setRight(rightNode *Node) {
+	node.rightNodeKey = rightNode.nodeKey
+	node.rightNode = rightNode
 }
 
 // NOTE: mutates height and size

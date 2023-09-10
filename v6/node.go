@@ -44,6 +44,7 @@ type Node struct {
 	frameId int
 	use     bool
 	dirty   bool
+	working bool
 }
 
 // String returns a string representation of the node key.
@@ -80,14 +81,17 @@ func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
 		return nil, fmt.Errorf("left node is nil")
 	}
 	if node.leftNodeKey != node.leftNode.nodeKey {
-		return nil, fmt.Errorf("left node key mismatch; expected %v, got %v",
-			node.leftNodeKey, node.leftNode.nodeKey)
+		// return nil, fmt.Errorf("left node key mismatch; expected %v, got %v",
+		//	node.leftNodeKey, node.leftNode.nodeKey)
+		node.leftNode = t.db.Get(*node.leftNodeKey)
+		t.pool.Put(node.leftNode)
 	}
+	node.leftNode.use = true
 	return node.leftNode, nil
 }
 
 func (node *Node) left(t *MutableTree) *Node {
-	leftNode, err := node.getLeftNode(nil)
+	leftNode, err := node.getLeftNode(t)
 	if err != nil {
 		panic(err)
 	}
@@ -104,14 +108,17 @@ func (node *Node) getRightNode(t *MutableTree) (*Node, error) {
 		return nil, fmt.Errorf("right node is nil")
 	}
 	if node.rightNodeKey != node.rightNode.nodeKey {
-		return nil, fmt.Errorf("right node key mismatch; expected %v, got %v",
-			node.rightNodeKey, node.rightNode.nodeKey)
+		// return nil, fmt.Errorf("right node key mismatch; expected %v, got %v",
+		//	node.rightNodeKey, node.rightNode.nodeKey)
+		node.rightNode = t.db.Get(*node.rightNodeKey)
+		t.pool.Put(node.rightNode)
 	}
+	node.rightNode.use = true
 	return node.rightNode, nil
 }
 
 func (node *Node) right(t *MutableTree) *Node {
-	rightNode, err := node.getRightNode(nil)
+	rightNode, err := node.getRightNode(t)
 	if err != nil {
 		panic(err)
 	}

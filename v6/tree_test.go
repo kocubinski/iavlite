@@ -19,10 +19,11 @@ func TestSanity(t *testing.T) {
 }
 
 func TestTree_Build(t *testing.T) {
+	db := newMemDB()
 	tree := &MutableTree{
-		pool:    newNodePool(3_000_000),
+		pool:    newNodePool(db, 500_000),
 		metrics: &core.TreeMetrics{},
-		db:      newMemDB(),
+		db:      db,
 	}
 	tree.pool.metrics = tree.metrics
 
@@ -33,7 +34,7 @@ func TestTree_Build(t *testing.T) {
 	testutil.TestTreeBuild(t, opts)
 
 	height := treeHeight(tree.root)
-	count := treeCount(tree.root)
+	count := pooledTreeCount(tree, tree.root)
 
 	workingSetCount := 0
 	for _, n := range tree.pool.nodes {
@@ -56,6 +57,13 @@ func treeCount(node *Node) int {
 		return 0
 	}
 	return 1 + treeCount(node.leftNode) + treeCount(node.rightNode)
+}
+
+func pooledTreeCount(tree *MutableTree, node *Node) int {
+	if node.isLeaf() {
+		return 1
+	}
+	return 1 + pooledTreeCount(tree, node.left(tree)) + pooledTreeCount(tree, node.right(tree))
 }
 
 func treeHeight(node *Node) int8 {

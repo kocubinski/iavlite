@@ -5,12 +5,11 @@ import (
 )
 
 type nodePool struct {
-	free    chan int
-	nodes   []*Node
-	metrics *core.TreeMetrics
-	evict   func(*nodePool) *Node
-	//hotSet  []*Node
-	//coldSet []*Node
+	db        *memDB
+	free      chan int
+	nodes     []*Node
+	metrics   *core.TreeMetrics
+	evict     func(*nodePool) *Node
 	clockHand int
 }
 
@@ -18,7 +17,7 @@ func (np *nodePool) clockEvict() *Node {
 	itr := 0
 	for {
 		itr++
-		if itr > len(np.nodes) {
+		if itr > len(np.nodes)*2 {
 			panic("eviction failed, pool exhausted")
 		}
 
@@ -29,25 +28,30 @@ func (np *nodePool) clockEvict() *Node {
 		}
 
 		switch {
-		case n.dirty:
-			np.metrics.PoolEvictMiss++
-			continue
 		case n.use:
+			// always clear the use bit, dirty nodes included.
 			np.metrics.PoolEvictMiss++
 			n.use = false
+			continue
+		case n.dirty:
+			// never evict dirty nodes
+			np.metrics.PoolEvictMiss++
+			// TODO async write and atomic bool
+			np.db.Set(n)
+			continue
 		default:
 			np.metrics.PoolEvict++
 			np.Return(n)
 			return n
-
 		}
 	}
 }
 
-func newNodePool(size int) *nodePool {
+func newNodePool(db *memDB, size int) *nodePool {
 	np := &nodePool{
 		nodes: make([]*Node, size),
 		free:  make(chan int, size),
+		db:    db,
 	}
 	for i := 0; i < size; i++ {
 		np.free <- i
@@ -94,7 +98,6 @@ func (np *nodePool) Put(n *Node) {
 	}
 	n.frameId = frameId
 	n.use = true
-	n.dirty = false
 }
 
 func (node *Node) clear() {

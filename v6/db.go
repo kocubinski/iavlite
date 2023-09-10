@@ -17,6 +17,7 @@ func newMemDB() *memDB {
 func (db *memDB) Set(node *Node) {
 	nk := *node.nodeKey
 	db.nodes[nk] = *node
+	node.dirty = false
 	db.setCount++
 }
 

@@ -58,8 +58,11 @@ func NewTreeBuildOptions(tree Tree) TreeBuildOptions {
 	var seed int64 = 1234
 	var versions int64 = 10_000_000
 	bankGen := bench.BankLikeGenerator(seed, versions)
+	//bankGen.InitialSize = 10_000
 	lockupGen := bench.LockupLikeGenerator(seed, versions)
+	//lockupGen.InitialSize = 10_000
 	stakingGen := bench.StakingLikeGenerator(seed, versions)
+	//stakingGen.InitialSize = 10_000
 	itr, err := bench.NewChangesetIterators([]bench.ChangesetGenerator{bankGen, lockupGen, stakingGen})
 	if err != nil {
 		panic(err)

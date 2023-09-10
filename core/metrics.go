@@ -19,9 +19,13 @@ type TreeMetrics struct {
 }
 
 func (m *TreeMetrics) Report() {
-	fmt.Printf("Pool:\n gets: %s, returns: %s\nTree:\n update: %s, new node: %s, delete: %s\n",
+	fmt.Printf("Pool:\n gets: %s, returns: %s, faults: %s, evicts: %s, evict miss %s",
 		humanize.Comma(m.PoolGet),
 		humanize.Comma(m.PoolReturn),
+		humanize.Comma(m.PoolFault),
+		humanize.Comma(m.PoolEvict),
+		humanize.Comma(m.PoolEvictMiss))
+	fmt.Printf("\nTree:\n update: %s, new node: %s, delete: %s\n",
 		humanize.Comma(m.TreeUpdate),
 		humanize.Comma(m.TreeNewNode),
 		humanize.Comma(m.TreeDelete))

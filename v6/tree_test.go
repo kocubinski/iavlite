@@ -21,7 +21,7 @@ func TestSanity(t *testing.T) {
 func TestTree_Build(t *testing.T) {
 	db := newMemDB()
 	tree := &MutableTree{
-		pool:    newNodePool(db, 500_000),
+		pool:    newNodePool(db, 210_050),
 		metrics: &core.TreeMetrics{},
 		db:      db,
 	}
@@ -33,10 +33,12 @@ func TestTree_Build(t *testing.T) {
 	}
 	testutil.TestTreeBuild(t, opts)
 
-	height := treeHeight(tree.root)
+	// don't evict root on iteration
+	tree.root.dirty = true
 	count := pooledTreeCount(tree, tree.root)
+	height := treeHeight(tree.root)
 
-	workingSetCount := 0
+	workingSetCount := -1 // offset for root
 	for _, n := range tree.pool.nodes {
 		if n.dirty {
 			workingSetCount++
@@ -49,8 +51,9 @@ func TestTree_Build(t *testing.T) {
 
 	require.Equal(t, height, tree.root.subtreeHeight+1)
 	require.Equal(t, count, len(tree.db.nodes))
-	require.Equal(t, count, len(tree.pool.nodes)-len(tree.pool.free))
 	require.Equal(t, tree.pool.dirtyCount, workingSetCount)
+
+	treeAndDbEqual(t, tree, *tree.root)
 }
 
 func treeCount(node *Node) int {
@@ -72,4 +75,31 @@ func treeHeight(node *Node) int8 {
 		return 0
 	}
 	return 1 + maxInt8(treeHeight(node.leftNode), treeHeight(node.rightNode))
+}
+
+func pooledTreeHeight(tree *MutableTree, node *Node) int8 {
+	if node.isLeaf() {
+		return 1
+	}
+	return 1 + maxInt8(pooledTreeHeight(tree, node.left(tree)), pooledTreeHeight(tree, node.right(tree)))
+}
+
+func treeAndDbEqual(t *testing.T, tree *MutableTree, node Node) {
+	dbNode := tree.db.Get(*node.nodeKey)
+	require.NotNil(t, dbNode)
+	require.Equal(t, dbNode.hash, node.hash)
+	require.Equal(t, dbNode.nodeKey, node.nodeKey)
+	require.Equal(t, dbNode.key, node.key)
+	require.Equal(t, dbNode.value, node.value)
+	require.Equal(t, dbNode.size, node.size)
+	require.Equal(t, dbNode.subtreeHeight, node.subtreeHeight)
+	require.Equal(t, dbNode.leftNodeKey, node.leftNodeKey)
+	require.Equal(t, dbNode.rightNodeKey, node.rightNodeKey)
+	if node.isLeaf() {
+		return
+	}
+	leftNode := *node.left(tree)
+	rightNode := *node.right(tree)
+	treeAndDbEqual(t, tree, leftNode)
+	treeAndDbEqual(t, tree, rightNode)
 }

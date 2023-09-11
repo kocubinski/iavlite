@@ -78,8 +78,9 @@ func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
 	//	return nil, fmt.Errorf("left node is nil")
 	//}
 	if node.leftNode == nil || node.leftNodeKey != node.leftNode.nodeKey {
-		// return nil, fmt.Errorf("left node key mismatch; expected %v, got %v",
-		//	node.leftNodeKey, node.leftNode.nodeKey)
+		if node.leftNodeKey == nil {
+			return nil, fmt.Errorf("left node key is nil")
+		}
 		node.leftNode = t.db.Get(*node.leftNodeKey)
 		if node.leftNode == nil {
 			return nil, fmt.Errorf("left node is nil; fetch failed")

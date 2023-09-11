@@ -48,7 +48,7 @@ func (np *nodePool) clockEvict() *Node {
 			continue
 		default:
 			np.metrics.PoolEvict++
-			np.Return(n)
+			n.clear()
 			return n
 		}
 	}
@@ -62,7 +62,7 @@ func newNodePool(db *memDB, size int) *nodePool {
 	}
 	for i := 0; i < size; i++ {
 		np.free <- i
-		np.nodes[i] = &Node{}
+		np.nodes[i] = &Node{frameId: i}
 	}
 	return np
 }
@@ -70,13 +70,13 @@ func newNodePool(db *memDB, size int) *nodePool {
 func (np *nodePool) Get() *Node {
 	np.metrics.PoolGet++
 
-	if np.dirtyCount > len(np.nodes)/2 {
-		np.overflowed = true
-		np.metrics.PoolDirtyOverflow++
-		// allocate a new node. it will be discarded on next flush
-		n := &Node{overflow: true}
-		return n
-	}
+	//if np.dirtyCount > len(np.nodes)/2 {
+	//	np.overflowed = true
+	//	np.metrics.PoolDirtyOverflow++
+	//	// allocate a new node. it will be discarded on next flush
+	//	n := &Node{overflow: true}
+	//	return n
+	//}
 
 	var n *Node
 	if len(np.free) == 0 {
@@ -84,7 +84,6 @@ func (np *nodePool) Get() *Node {
 	} else {
 		id := <-np.free
 		n = np.nodes[id]
-		n.frameId = id
 	}
 	n.use = true
 	np.dirtyNode(n)
@@ -160,6 +159,5 @@ func (node *Node) clear() {
 	node.leftNodeKey = nil
 	node.subtreeHeight = 0
 	node.size = 0
-	node.frameId = 0
 	node.use = false
 }

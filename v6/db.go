@@ -1,7 +1,5 @@
 package v6
 
-import "fmt"
-
 // memDB approximates a database with a map.
 // it used to store nodes in memory so that pool size can be constrained and tested.
 type memDB struct {
@@ -37,9 +35,6 @@ func (db *memDB) Get(nk nodeKey) *Node {
 }
 
 func (db *memDB) Delete(nk nodeKey) {
-	if nk.String() == "(770, 220)" {
-		fmt.Println("delete (770, 220)")
-	}
 	delete(db.nodes, nk)
 	db.deleteCount++
 }

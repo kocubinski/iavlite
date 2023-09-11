@@ -282,20 +282,8 @@ func (tree *MutableTree) deepHash(sequence *uint32, node *Node) *nodeKey {
 	*sequence++
 	node.nodeKey = newNodeKey(tree.version, *sequence)
 	if !node.isLeaf() {
-		// permit field fetch here for now; all these nodes are definitely in the working set
-		var left, right *Node
-		if node.leftNode != nil {
-			left = node.leftNode
-		} else {
-			left = node.left(tree)
-		}
-		if node.rightNode != nil {
-			right = node.rightNode
-		} else {
-			right = node.right(tree)
-		}
-		node.leftNodeKey = tree.deepHash(sequence, left)
-		node.rightNodeKey = tree.deepHash(sequence, right)
+		node.leftNodeKey = tree.deepHash(sequence, node.left(tree))
+		node.rightNodeKey = tree.deepHash(sequence, node.right(tree))
 	}
 	node._hash(tree, tree.version)
 	tree.pool.FlushNode(node)
@@ -316,9 +304,6 @@ func (tree *MutableTree) deepHash(sequence *uint32, node *Node) *nodeKey {
 
 func (tree *MutableTree) addOrphan(n *Node) {
 	if n.nodeKey != nil {
-		if n.nodeKey.String() == "(770, 220)" {
-			fmt.Println("orphan (770, 220)")
-		}
 		tree.orphans = append(tree.orphans, n.nodeKey)
 	}
 }

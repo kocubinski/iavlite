@@ -70,13 +70,13 @@ func newNodePool(db *memDB, size int) *nodePool {
 func (np *nodePool) Get() *Node {
 	np.metrics.PoolGet++
 
-	//if np.dirtyCount > len(np.nodes)/2 {
-	//	np.overflowed = true
-	//	np.metrics.PoolDirtyOverflow++
-	//	// allocate a new node. it will be discarded on next flush
-	//	n := &Node{overflow: true}
-	//	return n
-	//}
+	if np.dirtyCount > len(np.nodes)/2 {
+		np.overflowed = true
+		np.metrics.PoolDirtyOverflow++
+		// allocate a new node. it will be discarded on next flush
+		n := &Node{overflow: true}
+		return n
+	}
 
 	var n *Node
 	if len(np.free) == 0 {

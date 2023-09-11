@@ -20,11 +20,11 @@ func TestSanity(t *testing.T) {
 
 func TestTree_Build(t *testing.T) {
 	// just a little bigger than the size of the initial changeset. evictions will occur slowly.
-	poolSize := 210_050
+	//poolSize := 210_050
 	// no evictions
 	//poolSize := 500_000
 	// overflow on initial changeset
-	//poolSize := 100_000
+	poolSize := 100_000
 
 	db := newMemDB()
 	tree := &MutableTree{
@@ -42,10 +42,10 @@ func TestTree_Build(t *testing.T) {
 
 	// don't evict root on iteration
 	tree.root.dirty = true
-	count := pooledTreeCount(tree, tree.root)
-	height := treeHeight(tree.root)
+	count := pooledTreeCount(tree, *tree.root)
+	height := pooledTreeHeight(tree, *tree.root)
 
-	workingSetCount := -1 // offset for root
+	workingSetCount := 0
 	for _, n := range tree.pool.nodes {
 		if n.dirty {
 			workingSetCount++
@@ -70,25 +70,22 @@ func treeCount(node *Node) int {
 	return 1 + treeCount(node.leftNode) + treeCount(node.rightNode)
 }
 
-func pooledTreeCount(tree *MutableTree, node *Node) int {
+func pooledTreeCount(tree *MutableTree, node Node) int {
 	if node.isLeaf() {
 		return 1
 	}
-	return 1 + pooledTreeCount(tree, node.left(tree)) + pooledTreeCount(tree, node.right(tree))
+	left := *node.left(tree)
+	right := *node.right(tree)
+	return 1 + pooledTreeCount(tree, left) + pooledTreeCount(tree, right)
 }
 
-func treeHeight(node *Node) int8 {
-	if node == nil {
-		return 0
-	}
-	return 1 + maxInt8(treeHeight(node.leftNode), treeHeight(node.rightNode))
-}
-
-func pooledTreeHeight(tree *MutableTree, node *Node) int8 {
+func pooledTreeHeight(tree *MutableTree, node Node) int8 {
 	if node.isLeaf() {
 		return 1
 	}
-	return 1 + maxInt8(pooledTreeHeight(tree, node.left(tree)), pooledTreeHeight(tree, node.right(tree)))
+	left := *node.left(tree)
+	right := *node.right(tree)
+	return 1 + maxInt8(pooledTreeHeight(tree, left), pooledTreeHeight(tree, right))
 }
 
 func treeAndDbEqual(t *testing.T, tree *MutableTree, node Node) {

@@ -10,29 +10,65 @@ import (
 type MutableTree struct {
 	version int64
 	root    *Node
+	rootKey *nodeKey
 	pool    *nodePool
 	metrics *core.TreeMetrics
 	db      *memDB
-	orphans []*nodeKey
+
+	// should be part of pool?
+	orphans            []*nodeKey
+	overflow           []*Node
+	checkpointInterval int64
 }
 
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	tree.version++
 	var sequence uint32
-	tree.deepHash(&sequence, tree.root)
-	// deepHash flushes to disk and clears overflowed nodes for GC
-	tree.pool.overflowed = false
 
+	if tree.version == 228 {
+		fmt.Printf("version 229\n")
+	}
+
+	// deepHash flushes to disk and clears overflowed nodes for GC
+	tree.rootKey = tree.deepHash(&sequence, tree.root)
+
+	if tree.shouldCheckpoint() {
+		err := tree.Checkpoint()
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+
+	// uncomment below to really exercise the pool
+	// tree.root.leftNode = nil
+	// tree.root.rightNode = nil
+
+	return tree.root.hash, tree.version, nil
+}
+
+func (tree *MutableTree) Checkpoint() error {
+	fmt.Printf("checkpointing at version %d\n", tree.version)
+	err := tree.pool.checkpoint(tree.overflow)
+	if err != nil {
+		return err
+	}
+	for _, overflow := range tree.overflow {
+		tree.pool.FlushNode(overflow)
+	}
 	for _, orphan := range tree.orphans {
 		tree.db.Delete(*orphan)
 	}
+	tree.db.lastCheckpoint = tree.version
 	tree.orphans = nil
+	tree.overflow = nil
+	tree.pool.overflowed = false
 
-	// uncomment below to really exercise the pool
-	//tree.root.leftNode = nil
-	//tree.root.rightNode = nil
+	if tree.root.overflow {
+		tree.root = tree.db.Get(*tree.rootKey)
+		tree.pool.Put(tree.root)
+	}
 
-	return tree.root.hash, tree.version, nil
+	return nil
 }
 
 // Set sets a key in the working tree. Nil values are invalid. The given
@@ -89,6 +125,16 @@ func (tree *MutableTree) Size() int64 {
 
 func (tree *MutableTree) Height() int8 {
 	return tree.root.subtreeHeight
+}
+
+func (tree *MutableTree) shouldCheckpoint() bool {
+	if tree.overflow != nil {
+		return true
+	}
+	if tree.version-tree.db.lastCheckpoint > tree.checkpointInterval {
+		return true
+	}
+	return false
 }
 
 // removes the node corresponding to the passed key and balances the tree.
@@ -283,6 +329,10 @@ func (tree *MutableTree) deepHash(sequence *uint32, node *Node) *nodeKey {
 	if node == nil {
 		panic("nil node in deepHash")
 	}
+
+	if node.overflow {
+		tree.overflow = append(tree.overflow, node)
+	}
 	if node.nodeKey != nil {
 		return node.nodeKey
 	}
@@ -293,10 +343,13 @@ func (tree *MutableTree) deepHash(sequence *uint32, node *Node) *nodeKey {
 		node.rightNodeKey = tree.deepHash(sequence, node.right(tree))
 	}
 	node._hash(tree, tree.version)
-	tree.pool.FlushNode(node)
+
+	// TODO remove
+	// only flush in checkpoint
+	// tree.pool.FlushNode(node)
 
 	if !node.isLeaf() {
-		// remove unmanaged overflow nodes by setting to nil. will be garbage collected.
+		// remove un-managed overflow nodes by setting to nil. will be garbage collected.
 		// leftNode and rightNode will fault and be replaced on next fetch.
 		if node.leftNode.overflow {
 			node.leftNode = nil

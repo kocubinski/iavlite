@@ -1,6 +1,8 @@
 package v6
 
 import (
+	"fmt"
+
 	"github.com/kocubinski/iavlite/core"
 )
 
@@ -14,6 +16,7 @@ type nodePool struct {
 
 	overflowed bool
 	dirtyCount int
+	lockCount  int
 }
 
 func (np *nodePool) clockEvict() *Node {
@@ -89,6 +92,11 @@ func (np *nodePool) Get() *Node {
 
 func (np *nodePool) Return(n *Node) {
 	if n.overflow {
+		// this un-managed node had `mutateNode` called on it
+		if n.dirty {
+			np.dirtyCount--
+		}
+
 		// overflow nodes are not managed
 		return
 	}
@@ -142,6 +150,45 @@ func (np *nodePool) dirtyNode(n *Node) {
 	}
 	n.dirty = true
 	np.dirtyCount++
+}
+
+func (np *nodePool) lockDirty() {
+	for _, n := range np.nodes {
+		if n.dirty {
+			n.lock = true
+			np.lockCount++
+		}
+	}
+}
+
+func (np *nodePool) unlockDirty() error {
+	lockCount := 0
+	for _, n := range np.nodes {
+		if n.lock {
+			n.lock = false
+			lockCount++
+		}
+	}
+	if lockCount != np.lockCount {
+		return fmt.Errorf("lock count mismatch: %d != %d", lockCount, np.lockCount)
+	}
+	np.lockCount = 0
+	return nil
+}
+
+func (np *nodePool) checkpoint(overflow []*Node) error {
+	for _, n := range np.nodes {
+		if n.dirty {
+			np.FlushNode(n)
+		}
+	}
+	for _, n := range overflow {
+		np.FlushNode(n)
+	}
+	//if np.dirtyCount != 0 {
+	//	return fmt.Errorf("dirty count mismatch: %d != 0", np.dirtyCount)
+	//}
+	return nil
 }
 
 func (node *Node) clear() {

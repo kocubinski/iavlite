@@ -3,9 +3,10 @@ package v6
 // memDB approximates a database with a map.
 // it used to store nodes in memory so that pool size can be constrained and tested.
 type memDB struct {
-	nodes       map[nodeKey]Node
-	setCount    int
-	deleteCount int
+	nodes          map[nodeKey]Node
+	setCount       int
+	deleteCount    int
+	lastCheckpoint int64
 }
 
 func newMemDB() *memDB {

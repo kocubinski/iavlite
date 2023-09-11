@@ -45,6 +45,7 @@ type Node struct {
 	use      bool
 	dirty    bool
 	overflow bool
+	lock     bool
 }
 
 // String returns a string representation of the node key.

@@ -28,9 +28,10 @@ func TestTree_Build(t *testing.T) {
 
 	db := newMemDB()
 	tree := &MutableTree{
-		pool:    newNodePool(db, poolSize),
-		metrics: &core.TreeMetrics{},
-		db:      db,
+		pool:               newNodePool(db, poolSize),
+		metrics:            &core.TreeMetrics{},
+		db:                 db,
+		checkpointInterval: 10_000,
 	}
 	tree.pool.metrics = tree.metrics
 
@@ -40,12 +41,15 @@ func TestTree_Build(t *testing.T) {
 	}
 	testutil.TestTreeBuild(t, opts)
 
-	// don't evict root on iteration
+	err := tree.Checkpoint()
+	require.NoError(t, err)
+
+	// don't evict root on iteration, it interacts with the node pool
 	tree.root.dirty = true
 	count := pooledTreeCount(tree, *tree.root)
 	height := pooledTreeHeight(tree, *tree.root)
 
-	workingSetCount := 0
+	workingSetCount := -1 // offset the dirty root above.
 	for _, n := range tree.pool.nodes {
 		if n.dirty {
 			workingSetCount++

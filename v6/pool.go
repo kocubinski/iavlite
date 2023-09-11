@@ -14,7 +14,6 @@ type nodePool struct {
 	evict     func(*nodePool) *Node
 	clockHand int
 
-	overflowed bool
 	dirtyCount int
 	lockCount  int
 }
@@ -70,7 +69,6 @@ func (np *nodePool) Get() *Node {
 	// TODO
 	// soft ceiling: test/configure different fractions
 	if np.dirtyCount > len(np.nodes)/2 {
-		np.overflowed = true
 		np.metrics.PoolDirtyOverflow++
 		// allocate a new node. it will be discarded on next flush
 		n := &Node{overflow: true}

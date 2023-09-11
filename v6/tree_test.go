@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/dustin/go-humanize"
 	"github.com/kocubinski/iavlite/core"
 	"github.com/kocubinski/iavlite/testutil"
 	"github.com/stretchr/testify/require"
@@ -19,12 +20,12 @@ func TestSanity(t *testing.T) {
 }
 
 func TestTree_Build(t *testing.T) {
-	// just a little bigger than the size of the initial changeset. evictions will occur slowly.
+	//just a little bigger than the size of the initial changeset. evictions will occur slowly.
 	//poolSize := 210_050
 	// no evictions
-	//poolSize := 500_000
+	poolSize := 500_000
 	// overflow on initial changeset
-	poolSize := 100_000
+	//poolSize := 100_000
 
 	db := newMemDB()
 	tree := &MutableTree{
@@ -59,6 +60,9 @@ func TestTree_Build(t *testing.T) {
 	fmt.Printf("workingSetCount: %d\n", workingSetCount)
 	fmt.Printf("treeCount: %d\n", count)
 	fmt.Printf("treeHeight: %d\n", height)
+	fmt.Printf("db stats:\n sets: %s, deletes: %s\n",
+		humanize.Comma(int64(db.setCount)),
+		humanize.Comma(int64(db.deleteCount)))
 
 	require.Equal(t, height, tree.root.subtreeHeight+1)
 	require.Equal(t, count, len(tree.db.nodes))

@@ -25,10 +25,6 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	tree.version++
 	var sequence uint32
 
-	if tree.version == 228 {
-		fmt.Printf("version 229\n")
-	}
-
 	// deepHash flushes to disk and clears overflowed nodes for GC
 	tree.rootKey = tree.deepHash(&sequence, tree.root)
 
@@ -61,8 +57,8 @@ func (tree *MutableTree) Checkpoint() error {
 	tree.db.lastCheckpoint = tree.version
 	tree.orphans = nil
 	tree.overflow = nil
-	tree.pool.overflowed = false
 
+	// keep the root node in the pool if it ended up in overflow
 	if tree.root.overflow {
 		tree.root = tree.db.Get(*tree.rootKey)
 		tree.pool.Put(tree.root)
@@ -363,7 +359,8 @@ func (tree *MutableTree) deepHash(sequence *uint32, node *Node) *nodeKey {
 }
 
 func (tree *MutableTree) addOrphan(n *Node) {
-	if n.nodeKey != nil {
+	// orphans which never made it to the db don't need to be deleted from it.
+	if n.nodeKey != nil && n.nodeKey.Version() <= tree.db.lastCheckpoint {
 		tree.orphans = append(tree.orphans, n.nodeKey)
 	}
 }

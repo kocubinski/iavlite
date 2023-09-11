@@ -28,6 +28,7 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	}
 	tree.orphans = nil
 
+	// uncomment below to really exercise the pool
 	//tree.root.leftNode = nil
 	//tree.root.rightNode = nil
 
@@ -67,6 +68,7 @@ func (tree *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	if tree.root == nil {
 		return nil, false, nil
 	}
+	tree.root.use = true
 	newRoot, _, value, removed, err := tree.recursiveRemove(tree.root, key)
 	if err != nil {
 		return nil, false, err
@@ -196,6 +198,11 @@ func (tree *MutableTree) set(key []byte, value []byte) (updated bool, err error)
 		tree.root.size = 1
 		return updated, nil
 	}
+
+	// todo this is a hack to prevent the root node from being garbage collected
+	// could be fixed by checking rootKey against the root node's key, or pinning root in
+	// the pool
+	tree.root.use = true
 
 	tree.root, updated, err = tree.recursiveSet(tree.root, key, value)
 	return updated, err

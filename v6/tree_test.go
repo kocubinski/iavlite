@@ -19,9 +19,16 @@ func TestSanity(t *testing.T) {
 }
 
 func TestTree_Build(t *testing.T) {
+	// just a little bigger than the size of the initial changeset. evictions will occur slowly.
+	poolSize := 210_050
+	// no evictions
+	//poolSize := 500_000
+	// overflow on initial changeset
+	//poolSize := 100_000
+
 	db := newMemDB()
 	tree := &MutableTree{
-		pool:    newNodePool(db, 210_050),
+		pool:    newNodePool(db, poolSize),
 		metrics: &core.TreeMetrics{},
 		db:      db,
 	}

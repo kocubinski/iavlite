@@ -1,12 +1,8 @@
 package v6
 
 import (
-	"math"
-
 	"github.com/kocubinski/iavlite/core"
 )
-
-var fakeNode = &Node{nodeKey: newNodeKey(math.MaxInt64, math.MaxUint32), value: []byte("fake")}
 
 type nodePool struct {
 	db        *memDB
@@ -43,8 +39,6 @@ func (np *nodePool) clockEvict() *Node {
 		case n.dirty:
 			// never evict dirty nodes
 			np.metrics.PoolEvictMiss++
-			// TODO async write and atomic bool
-			//np.db.Set(n)
 			continue
 		default:
 			np.metrics.PoolEvict++
@@ -70,6 +64,8 @@ func newNodePool(db *memDB, size int) *nodePool {
 func (np *nodePool) Get() *Node {
 	np.metrics.PoolGet++
 
+	// TODO
+	// soft ceiling: test/configure different fractions
 	if np.dirtyCount > len(np.nodes)/2 {
 		np.overflowed = true
 		np.metrics.PoolDirtyOverflow++

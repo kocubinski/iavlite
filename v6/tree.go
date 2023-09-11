@@ -296,7 +296,7 @@ func (tree *MutableTree) deepHash(sequence *uint32, node *Node) *nodeKey {
 	tree.pool.FlushNode(node)
 
 	if !node.isLeaf() {
-		// remove unmanaged overflow nodes by replacing with a fake node. will be garbage collected.
+		// remove unmanaged overflow nodes by setting to nil. will be garbage collected.
 		// leftNode and rightNode will fault and be replaced on next fetch.
 		if node.leftNode.overflow {
 			node.leftNode = nil

@@ -52,23 +52,6 @@ func (nk *nodeKey) String() string {
 	return fmt.Sprintf("(%d, %d)", nk.Version(), nk.Sequence())
 }
 
-// TODO remove?
-func (node *Node) mustChildren(t *MutableTree) {
-	var err error
-	if node.leftNode == nil {
-		node.leftNode, err = node.getLeftNode(t)
-		if err != nil {
-			panic(err)
-		}
-	}
-	if node.rightNode == nil {
-		node.rightNode, err = node.getRightNode(t)
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
 // getLeftNode will never be called on leaf nodes. all tree nodes have 2 children.
 func (node *Node) getLeftNode(t *MutableTree) (*Node, error) {
 	if node.isLeaf() {
